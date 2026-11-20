@@ -428,16 +428,18 @@ body.down .hero .glow{background:radial-gradient(ellipse 50% 45% at 50% 40%,rgba
    <div class="card"><div class="ch"><h3>Protokoll</h3><div class="chips" id="logChips"></div></div><div class="log" id="logList"></div></div>
   </section>
 
-  <section class="view" id="v-copy" data-marker="copytrade-web-1">
+  <section class="view" id="v-copy" data-marker="copytrade-web-2">
    <div class="g-ct">
     <div class="card hero span2 span3"><div class="glow"></div>
-     <div class="hrow"><span class="lbl">Copy-Trading · Spielgeld</span><span class="ptag">PAPER · KEINE WALLET</span><span class="ctban" id="ctSyn" style="display:none">SYNTHETISCHE TESTDATEN</span></div>
+     <div class="hrow"><span class="lbl">Night-Run-Konto · Copy-Agent</span><span class="ptag">PAPER · KEINE WALLET</span><span class="ctban" id="ctSyn" style="display:none">SYNTHETISCHE TESTDATEN</span></div>
      <div class="ctbig num" id="ctEq">$70.00</div><div class="num" id="ctPnl" style="font-size:14px">±$0.00</div>
      <canvas id="ctCurve"></canvas>
      <div class="ctk" id="ctK"></div>
-     <div class="ctbar"><label class="sin"><span>$</span><input class="ctin usd" id="ctUsd" type="number" inputmode="decimal" min="1" step="1" value="70"></label>
-      <button class="btn go" id="ctStart">Start</button><button class="btn" id="ctStop">Stopp</button><button class="btn" id="ctCloseAll">Alle Kopien schließen</button><button class="btn danger" id="ctWipe">Konto zurücksetzen</button>
+     <div class="ctbar"><label class="sin" style="display:none"><span>$</span><input class="ctin usd" id="ctUsd" type="number" inputmode="decimal" min="1" step="1" value="70"></label>
+      <button class="btn go" id="ctStart" title="Copy-Agent an – startet den Night-Run-Bot mit, falls er nicht läuft">Kopieren an</button><button class="btn" id="ctStop" title="Nur der Copy-Agent pausiert – der Bot handelt weiter">Kopieren aus</button><button class="btn" id="ctCloseAll">Alle Kopien schließen</button><button class="btn danger" id="ctWipe" title="Copy-Verlauf leeren – Konto, Lernstand, Regeln und Trader bleiben">Verlauf leeren</button>
       <span class="mut" id="ctConn" style="font-size:11.5px"></span></div>
+     <div class="mut" id="ctAlt" style="display:none;font-size:11.5px;color:#ffd27a;margin-top:6px"></div>
+     <div class="mut" style="font-size:11px;margin-top:6px">EIN Konto: Kopien laufen als Agent „Copy-Trading“ im Night-Run-Konto (gleiche Kasse, Kapitalkurve, Trades und Lernen). Der Bot lernt aus jeder Kopie und jedem Veto.</div>
     </div>
     <div class="card span2"><div class="ch"><h3>Regeln – einfach schreiben</h3><span class="mut" style="font-size:11px">Deutsch oder Englisch</span></div>
      <div class="ctmsgs" id="ctMsgs"></div><div class="ctsug" id="ctSug"></div>
@@ -532,8 +534,10 @@ const DEFAULT_CFG={
  common:{start_usd:70,max_open:5,max_per_mint:2,size_min:0.10,size_max:0.25,dd_limit_pct:30,dd_cooldown_min:30,loss_streak:3,loss_scale:0.5,
    lat_min:0.5,lat_max:1.5,prio_min:0.01,prio_max:0.05,pump_fee:0.01,max_amm_impact:3.0,cooldown_s:120,watch_new_s:180,watch_max_min:20,max_subs:30,
    max_dex_curves:14,dex_curve_min_v5:3000,rug_hold_s:120,top10_max:35,amm_top10_max:50,honeypot_max_loss:4.0,single_max:15,first2_buys_max:6,first2_sol_max:4.0,
-   amm_scan_s:12,amm_poll_s:2.5,min_trade_usd:2.0},
- learning:{on:true,warmup:25,logit_block:0.35,lr:0.05,l2:0.001,bandit:true,pattern_on:true,pattern_min_n:5,pattern_block_wr:0.2,adj_min_losses:4,adj_min_gap:3,adj_share:0.4},
+   amm_scan_s:12,amm_poll_s:2.5,min_trade_usd:2.0,
+   copy_max_open:3,copy_size_max:0.25,explore_rate:0.12,explore_boost:0.30,explore_idle_min:30,explore_size:0.4},
+ learning:{on:true,warmup:25,logit_block:0.35,lr:0.05,l2:0.001,bandit:true,pattern_on:true,pattern_min_n:12,pattern_block_wr:0.2,adj_min_losses:4,adj_min_gap:3,adj_share:0.4,
+   logit_rel:0.75,logit_floor:0.15,explore_band:0.12,pattern_prior:4,adj_half_life_h:6,adj_safety_half_life_h:24},
  agents:{
   sniper:Object.assign({on:1,venue:'curve',min_age_s:8,max_age_s:240,min_trades:10,min_buyers:8,min_buy_ratio:0.65,min_net_sol:1.5,max_dev_buy:2.5,max_rise:150},EXIT_CURVE),
   mom:Object.assign({on:1,venue:'curve',min_age_s:60,window_s:45,min_rise:12,vol_x:2.0,min_buyers:5,min_buy_ratio:0.62,max_rise:400,min_vol_sol:2.0},EXIT_CURVE),
@@ -541,10 +545,13 @@ const DEFAULT_CFG={
   whale:Object.assign({on:1,venue:'curve',big_sol:1.5,window_s:30,max_chase:15,min_buy_ratio:0.55,min_age_s:20,wallet_min_sol:0.2},EXIT_CURVE),
   migr:Object.assign({on:1,venue:'amm',min_delay_s:10,max_delay_s:600,min_liq:15000,min_buy_ratio:0.55,max_pump:40},EXIT_AMM),
   amm_mom:Object.assign({on:1,venue:'amm',min_m5:5,vol_x:2.0,min_liq:15000,max_age_h:24,max_pump:25,min_buy_ratio:0.5},EXIT_AMM),
-  amm_dip:Object.assign({on:1,venue:'amm',min_h1:20,min_h6:40,pb_min:8,pb_max:25,min_buy_ratio:0.55,min_liq:15000,max_age_h:24},EXIT_AMM)}};
-const ANAME={sniper:'Sniper',mom:'Momentum',dip:'Dip Hunter',whale:'Whale Tail',migr:'Migration',amm_mom:'Momentum (AMM)',amm_dip:'Dip Hunter (AMM)'};
+  amm_dip:Object.assign({on:1,venue:'amm',min_h1:20,min_h6:40,pb_min:8,pb_max:25,min_buy_ratio:0.55,min_liq:15000,max_age_h:24},EXIT_AMM),
+  copy:Object.assign({on:1,venue:'curve'},EXIT_CURVE)},v:2};   /* copy = Copy-Trading als Agent im selben Konto (Ausstiege kommen aus den Copy-Regeln) */
+const ANAME={sniper:'Sniper',mom:'Momentum',dip:'Dip Hunter',whale:'Whale Tail',migr:'Migration',amm_mom:'Momentum (AMM)',amm_dip:'Dip Hunter (AMM)',copy:'Copy-Trading'};
 const AGENTS=Object.keys(ANAME);
-const SAFETY_KEYS=new Set(['max_dev_buy','top10_max','single_max','first2_buys_max','first2_sol_max','min_liq']);
+const SAFETY_KEYS=new Set(['max_dev_buy','top10_max','single_max','first2_buys_max','first2_sol_max']);   /* min_liq ist kein Rug-Schutz: durfte früher nur steigen und sperrte AMM-Agenten dauerhaft */
+/* Grenzen für gelernte Schwellen um den Standardwert: ['abs',+x] oder ['mul',f] (vorher: bis 2x Standard, ohne Rückweg) */
+const ADJ_BOUNDS={min_buy_ratio:['abs',0.06],min_liq:['mul',1.5],min_net_sol:['mul',1.5],min_buyers:['mul',1.67],vol_x:['mul',1.5],max_rise:['mul',0.6],max_chase:['mul',0.6],max_pump:['mul',0.6],max_dev_buy:['mul',0.5],time_s:['mul',0.5]};
 const VARIANTS={streng:1.2,basis:1.0,locker:0.85};
 const VAR_KEYS=new Set(['min_trades','min_buyers','min_buy_ratio','min_net_sol','min_rise','vol_x','min_run','big_sol','min_m5','min_vol_sol']);
 const LS={state:'nightrun4.state',learn:'nightrun4.learn',cfg:'nightrun4.cfg',wal:'nightrun4.wallets',hist:'nightrun4.hist',mute:'nightrun4.mute'};
@@ -552,7 +559,8 @@ try{if(!localStorage.getItem(LS.learn)&&localStorage.getItem('nightrun3.learn'))
 const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
 let CFG=deep(DEFAULT_CFG);
-(()=>{const u=lsGet(LS.cfg,{});for(const s of ['common','learning'])Object.assign(CFG[s],u[s]||{});for(const a in (u.agents||{}))if(CFG.agents[a])Object.assign(CFG.agents[a],u.agents[a])})();
+(()=>{const u=lsGet(LS.cfg,{});if(!(u.v>=2)&&u.learning)delete u.learning.pattern_min_n;   /* ältere gespeicherte Einstellungen: alte Muster-Mindestzahl 5 nicht übernehmen */
+  for(const s of ['common','learning'])Object.assign(CFG[s],u[s]||{});for(const a in (u.agents||{}))if(CFG.agents[a])Object.assign(CFG.agents[a],u.agents[a])})();
 const C=k=>CFG.common[k];
 
 /* ---------- base58 / base64 / sha256 / ed25519 on-curve (for pump.fun bonding-curve PDA) ---------- */
@@ -586,7 +594,7 @@ const TRADE_B64='vdt/007m';   // base64 prefix of the pump.fun TradeEvent discri
 <script>
 /* ================= self-learning layer (port of v3 learn.py; learning.json-compatible) ================= */
 const FEAT_NAMES=['bias','age_min','buy_ratio','buyers','net_sol','rise','ret_w','vol_spike','dev_buy','first2','top10','h_sin','h_cos','mcap','curve',
- 'p_klimax','p_hoehere_tiefs','p_ausbruch','p_v_rev','p_blowoff','p_bleed','a_sniper','a_mom','a_dip','a_whale','a_migr','a_amm'];
+ 'p_klimax','p_hoehere_tiefs','p_ausbruch','p_v_rev','p_blowoff','p_bleed','a_sniper','a_mom','a_dip','a_whale','a_migr','a_amm','a_copy','c_leader'];   /* a_copy/c_leader: Kopie eines verfolgten Traders + dessen Kopier-Bilanz */
 const PATN={klimax:'Volumen-Klimax',hoehere_tiefs:'Höhere Tiefs',ausbruch:'Ausbruch aus Konsolidierung',v_rev:'V-Umkehr',blowoff:'Blow-off-Top',bleed:'Ausbluten'};
 const CAUSE={dev:'Dev/Top-Holder verkauft',stop_eng:'Stop zu eng (danach wieder hoch)',spaet:'zu spät eingestiegen',liq:'Liquidität dünn / hoher Impact',
  vol:'Volumen brach nach Einstieg ein',sell:'Verkaufsdruck/Sell-Ratio kippte',time:'Time-Stop ohne Bewegung',hour:'Tageszeit schwach',markt:'Marktrauschen / korrekt gestoppt',manuell:'Session-Stop (manuell)'};
@@ -598,11 +606,31 @@ const ADJ_RULES={
  sell:[['min_buy_ratio',v=>v+0.03,d=>Math.min(0.9,d+0.15),'max']],
  time:[['time_s',v=>v*0.8,d=>Math.max(60,d*0.5),'min']],
  dev:[['max_dev_buy',v=>v*0.85,d=>d*0.4,'min']]};
-const DEFAULT_L=()=>({v:1,bandit:{},agent_beta:{},logit:{w:FEAT_NAMES.map(()=>0),n:0},causes:{},lossLog:{},adj:{},events:[],pat:{},hours:{},stratN:{},lastAdjN:{},trades:0});
+const DEFAULT_L=()=>({v:1,bandit:{},agent_beta:{},logit:{w:FEAT_NAMES.map(()=>0),n:0},causes:{},lossLog:{},adj:{},events:[],pat:{},hours:{},stratN:{},lastAdjN:{},trades:0,adj_t:{},copy_leaders:{},veto:{},explore:[0,0]});
 const sig=z=>1/(1+Math.exp(-clamp(z,-30,30)));
 let LRN=null,learnSrc='';
 function normLearn(L){const d=DEFAULT_L();if(!L||typeof L!=='object')return d;for(const k in d)if(L[k]==null)L[k]=d[k];
-  if(!Array.isArray(L.logit.w)||L.logit.w.length!==FEAT_NAMES.length)L.logit={w:FEAT_NAMES.map(()=>0),n:0};return L}
+  if(!Array.isArray(L.logit.w)||L.logit.w.length>FEAT_NAMES.length)L.logit={w:FEAT_NAMES.map(()=>0),n:0};
+  else if(L.logit.w.length<FEAT_NAMES.length)L.logit.w=L.logit.w.concat(FEAT_NAMES.slice(L.logit.w.length).map(()=>0));   /* älterer Lernstand: neue Merkmale mit 0 anhängen, Gelerntes bleibt */
+  clampAll(L);return L}
+/* gelernte Schwelle -> in Grenzen um den Standard; Sicherheits-Schlüssel nie lockerer als Standard */
+function bound(a,k,v){const d=(CFG.agents[a]||{})[k];if(d==null||typeof v!=='number')return v;const b=ADJ_BOUNDS[k];
+  if(b){const lim=b[0]==='abs'?d+b[1]:d*b[1];v=clamp(v,Math.min(d,lim),Math.max(d,lim))}if(SAFETY_KEYS.has(k))v=Math.min(v,d);return v}
+function clampAll(L){for(const a in L.adj||{}){if(!CFG.agents[a])continue;for(const k in L.adj[a]){const v=L.adj[a][k],nv=bound(a,k,v);if(nv!==v)L.adj[a][k]=+nv.toFixed(4)}}}
+/* gelernte Schwellen wandern mit Halbwertszeit zum Standard zurück – ein Agent kann nicht für immer verhungern */
+function decayAdj(t){t=t||now();let ch=0;LRN.adj_t=LRN.adj_t||{};for(const a of Object.keys(LRN.adj||{})){const kv=LRN.adj[a],ts=LRN.adj_t[a]=LRN.adj_t[a]||{};
+  for(const k of Object.keys(kv)){const d=(CFG.agents[a]||{})[k],v=kv[k];if(d==null||typeof v!=='number')continue;const t0=ts[k];if(t0==null){ts[k]=t;continue}
+    const hl=(SAFETY_KEYS.has(k)?LC('adj_safety_half_life_h'):LC('adj_half_life_h'))*3600;if(!(hl>0)||t-t0<60)continue;const nv=d+(v-d)*Math.pow(0.5,(t-t0)/hl);ts[k]=t;
+    if(Math.abs(nv-d)<=Math.max(Math.abs(d)*0.02,1e-9)){delete kv[k];delete ts[k];ch++}else kv[k]=+nv.toFixed(4)}
+  if(!Object.keys(kv).length)delete LRN.adj[a]}return ch}
+/* Grund-Trefferquote aller gelernten Trades: der Signal-Score ist eine Gewinn-Wahrscheinlichkeit mit diesem Mittel.
+   Eine feste Schwelle 0,35 lag genau dort und sperrte so etwa jedes zweite Signal -> Schwelle relativ zur Grundquote. */
+function baseWr(){let a=0,b=0;for(const x of Object.values(LRN.agent_beta||{})){a+=Math.max(0,x[0]-1);b+=Math.max(0,x[1]-1)}return clamp((a+0.7)/(a+b+2),0.15,0.6)}
+function scoreThr(){return +clamp(baseWr()*LC('logit_rel'),LC('logit_floor'),LC('logit_block')).toFixed(3)}
+function leaderMult(l){const x=(LRN.copy_leaders||{})[l];if(!x||x[0]+x[1]-2<4)return 1;return clamp(0.4+1.2*(x[0]/(x[0]+x[1])),0.6,1.4)}
+function leaderFeat(l){const x=(LRN.copy_leaders||{})[l];if(!x)return 0;return clamp((x[0]-x[1])/(x[0]+x[1]),-1,1)}
+/* Copy-Veto ausgewertet: war es richtig (Verlust erspart)? -> Lernschritt für den Signal-Score */
+function vetoResult(rule,saved,x){const v=(LRN.veto=LRN.veto||{})[rule]=LRN.veto[rule]||[0,0];v[0]++;if(saved)v[1]++;if(x&&x.length===FEAT_NAMES.length)fit(x,saved?0:1);saveLearn()}
 function loadLearn(){const l=lsGet(LS.learn,null);if(l){LRN=normLearn(l);learnSrc='Browser-Speicher'}else{LRN=normLearn(deep(BOX_LEARN));learnSrc='Box-Lernstand (eingebettet, '+(BOX_LEARN.trades||0)+' Trades)'}}
 const saveLearn=()=>lsSet(LS.learn,LRN);
 const LC=k=>CFG.learning[k];
@@ -615,8 +643,9 @@ function pickVariant(a){if(!LC('bandit'))return 'basis';const b=LRN.bandit[a]=LR
 function agentMult(a){const [x,y]=LRN.agent_beta[a]||[1,1];if(x+y-2<5||!LC('bandit'))return 1;return clamp(0.4+1.2*(x/(x+y)),0.6,1.4)}
 function score(x){if(LRN.logit.n<LC('warmup'))return null;return sig(LRN.logit.w.reduce((s,w,i)=>s+w*x[i],0))}
 function fit(x,y){const lg=LRN.logit,p=sig(lg.w.reduce((s,w,i)=>s+w*x[i],0));lg.w=lg.w.map((w,i)=>w-LC('lr')*((p-y)*x[i]+LC('l2')*w));lg.n++}
-function patternMult(a,pats){const st=LRN.pat[a]||{},mn=LC('pattern_min_n');let m=1,block=null;
-  for(const k of pats){const [n,w]=st[k]||[0,0];if(n>=mn){const wr=w/n;if(LC('pattern_on')&&wr<=LC('pattern_block_wr'))block=`Muster ${PATN[k]}: nur ${w}/${n} Gewinner`;m*=clamp(0.5+wr*1.5,0.5,1.5)}}
+function patternMult(a,pats){const st=LRN.pat[a]||{},mn=Math.max(5,LC('pattern_min_n')),base=baseWr(),k0=LC('pattern_prior')||0;let m=1,block=null;
+  /* Vorwissen (Grundquote, Stärke pattern_prior) statt roher Quote; Sperre erst ab pattern_min_n Trades – 1 von 5 reichte früher für eine Sperre */
+  for(const k of pats){const [n,w]=st[k]||[0,0];if(n<=0)continue;const wr=(w+k0*base)/(n+k0);if(n>=mn&&LC('pattern_on')&&wr<=LC('pattern_block_wr'))block=`Muster ${PATN[k]}: nur ${w}/${n} Gewinner`;m*=clamp(0.5+wr*1.5,0.5,1.5)}
   return [clamp(m,0.5,1.5),block]}
 function weakHour(h){const [n,w]=LRN.hours[String(h)]||[0,0];return n>=6&&w/n<0.3}
 function postMortem(t,w){
@@ -644,12 +673,14 @@ function finalizeLearn(t,w,recent){
   LRN.trades++;const ab=LRN.agent_beta[s]=LRN.agent_beta[s]||[1,1];ab[win?0:1]++;
   const bv=(LRN.bandit[s]=LRN.bandit[s]||{streng:[1,1],basis:[1,1],locker:[1,1]});const vv=bv[t.variant||'basis']=bv[t.variant||'basis']||[1,1];vv[win?0:1]++;
   if(t.x)fit(t.x,win?1:0);
+  if(t.leader){const cl=(LRN.copy_leaders=LRN.copy_leaders||{})[t.leader]=LRN.copy_leaders[t.leader]||[1,1];cl[win?0:1]++}
+  if(t.explore){const ex=LRN.explore=LRN.explore||[0,0];ex[0]++;if(win)ex[1]++}
   for(const k of t.patterns||[]){const ps=LRN.pat[s]=LRN.pat[s]||{};const x=ps[k]=ps[k]||[0,0];x[0]++;x[1]+=win?1:0}
   const h=String((t.e||{}).hour??-1);const hx=LRN.hours[h]=LRN.hours[h]||[0,0];hx[0]++;hx[1]+=win?1:0;
   LRN.stratN[s]=(LRN.stratN[s]||0)+1;
   if(!win){t.pm=postMortem(t,w);const cs=LRN.causes[s]=LRN.causes[s]||{};for(const k of t.pm.causes)cs[k]=(cs[k]||0)+1;
     const ll=LRN.lossLog[s]=LRN.lossLog[s]||[];ll.push(t.pm.causes[0]);while(ll.length>12)ll.shift();
-    logLine('LEARN',`Verlust-Analyse ${ANAME[s]}: ${t.pm.text}`,{s:t.sym,st:s})}
+    logLine('LEARN',`Verlust-Analyse ${ANAME[s]||s}: ${t.pm.text}`,{s:t.sym,st:s})}
   else if(w&&t.exit_px&&w.max>t.exit_px*1.15)logLine('LEARN',`${ANAME[s]}: Gewinn ${smoney(t.pnl)}, Kurs lief nach dem Exit noch ${pct((w.max/t.exit_px-1)*100)} weiter`,{s:t.sym,st:s});
   adapt(s,recent);saveLearn();
 }
@@ -657,7 +688,7 @@ function note(s,txt){LRN.lastAdjN[s]=LRN.stratN[s]||0;const ev={t:now(),s,txt};L
   logLine('LEARN','Regel-Anpassung: '+txt,{st:s});toastSys('LERNEN',ANAME[s],txt.split(': ').slice(1).join(': ').slice(0,90))}
 function adapt(s,recent){
   if(!LC('on'))return;const ll=LRN.lossLog[s]||[],n=LRN.stratN[s]||0;
-  if(recent&&recent.length>=6&&recent.reduce((a,b)=>a+b,0)/recent.length>=0.67&&LRN.adj[s]&&Object.keys(LRN.adj[s]).length){
+  if(recent&&recent.length>=6&&recent.reduce((a,b)=>a+b,0)/recent.length>=0.5&&LRN.adj[s]&&Object.keys(LRN.adj[s]).length){
     for(const pk of Object.keys(LRN.adj[s])){if(SAFETY_KEYS.has(pk))continue;const d=CFG.agents[s][pk],v=LRN.adj[s][pk],nv=(v+d)/2;
       if(Math.abs(nv-d)<Math.abs(d)*0.03)delete LRN.adj[s][pk];else LRN.adj[s][pk]=nv;
       return note(s,`${ANAME[s]} läuft gut (${recent.reduce((a,b)=>a+b,0)}/${recent.length} gewonnen): ${pk} zurück Richtung ${d} → ${(+(LRN.adj[s][pk]??d)).toPrecision(3)}`)}}
@@ -665,7 +696,7 @@ function adapt(s,recent){
   const last=ll.slice(-8);const cnt={};for(const c of last)cnt[c]=(cnt[c]||0)+1;const [top,k]=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
   if(k/last.length<LC('adj_share')||!ADJ_RULES[top])return;
   const ch=[];
-  for(const [pk,step,bound,dir] of ADJ_RULES[top]){const d=CFG.agents[s][pk];if(d==null)continue;const cur=Pk(s,pk),b=bound(d);let nv=step(cur);nv=dir==='min'?Math.max(nv,b):Math.min(nv,b);
+  for(const [pk,step,bound_,dir] of ADJ_RULES[top]){const d=CFG.agents[s][pk];if(d==null)continue;const cur=Pk(s,pk),b=bound_(d);let nv=step(cur);nv=dir==='min'?Math.max(nv,b):Math.min(nv,b);nv=bound(s,pk,nv);(LRN.adj_t=LRN.adj_t||{})[s]=Object.assign(LRN.adj_t[s]||{},{[pk]:now()});
     if(Math.abs(nv-cur)<1e-9)continue;(LRN.adj[s]=LRN.adj[s]||{})[pk]=+nv.toFixed(4);ch.push(`${pk} ${(+cur).toPrecision(3)} → ${(+nv).toPrecision(3)}`)}
   if(ch.length)note(s,`${ANAME[s]}: ${k}/${last.length} letzte Verluste „${CAUSE[top]}“ → ${ch.join(', ')}`);
 }
@@ -684,7 +715,7 @@ function patternsFromBars(bars){
 function features(a,f,pats){const hr=hour();const x=[1,Math.min((f.age_s||0)/600,3),f.buy_ratio||0.5,Math.log1p(f.buyers||0)/3,clamp((f.net_sol||0)/10,-3,3),clamp((f.rise||0)/100,-1,5),
   clamp((f.ret_w||0)/50,-2,4),clamp((f.vol_spike??1)/5,0,4),clamp((f.dev_buy||0)/3,0,3),clamp((f.first2||0)/10,0,3),(f.top10||0)/100,Math.sin(hr/24*2*Math.PI),Math.cos(hr/24*2*Math.PI),
   clamp(Math.log10(Math.max(f.mcap_usd||1,1))/7,0,2),f.venue==='curve'?1:0];
-  for(const k in PATN)x.push(pats.includes(k)?1:0);for(const ag of ['sniper','mom','dip','whale','migr'])x.push(a===ag?1:0);x.push(a.startsWith('amm')?1:0);return x.map(v=>isFinite(v)?+v.toFixed(4):0)}
+  for(const k in PATN)x.push(pats.includes(k)?1:0);for(const ag of ['sniper','mom','dip','whale','migr'])x.push(a===ag?1:0);x.push(a.startsWith('amm')?1:0);x.push(a==='copy'?1:0,clamp(f.c_leader||0,-1,1));return x.map(v=>isFinite(v)?+v.toFixed(4):0)}
 </script>
 <script>
 /* ================= state, logging ================= */
@@ -871,16 +902,25 @@ const AG={
 function gateEnter(a,mint,r,tk,pair){const key=a+':'+mint;
   if(ST.paused)return filt(a,'Drawdown-Pause',mint);
   if(ST.positions[key]||PENDING.some(x=>x.kind==='buy'&&x.mint===mint&&x.agent===a))return;
-  if(Object.keys(ST.positions).length+PENDING.filter(x=>x.kind==='buy').length+ENTERING.size>=C('max_open'))return filt(a,'max. offene Positionen',mint);
+  if(Object.values(ST.positions).filter(p=>!p.ct).length+PENDING.filter(x=>x.kind==='buy').length+ENTERING.size>=C('max_open'))return filt(a,'max. offene Positionen',mint);   /* Kopien haben ein eigenes Limit (copy_max_open) */
   if(Object.values(ST.positions).filter(p=>p.mint===mint).length>=C('max_per_mint'))return filt(a,'Token schon mehrfach gehalten',mint);
   if((ST.cooldown[key]||0)>now())return filt(a,'Cooldown nach Exit',mint);
-  const pats=tk?patternsFromBars(tk.bars):ammPatterns(mint);const [pm,block]=patternMult(a,pats);if(block)return filt(a,'Muster mit schlechter Bilanz',mint);
-  const x=features(a,r.f,pats),sc=score(x);if(sc!=null&&sc<LC('logit_block'))return filt(a,`Signal-Score < ${LC('logit_block')}`,mint);
-  const eq=equity(),frac=C('size_min')+(C('size_max')-C('size_min'))*r.strength;let mult=agentMult(a)*pm*(sc!=null?0.6+0.8*sc:1);const notes=[];
+  const pats=tk?patternsFromBars(tk.bars):ammPatterns(mint);const [pm,block]=patternMult(a,pats);const notes=[];let explore=false;
+  if(block){if(!explorePick(a,mint))return filt(a,'Muster mit schlechter Bilanz',mint);explore=true;notes.push('Erkundung trotz Muster-Statistik')}   /* gelernte Sperre, keine Sicherheits-Sperre */
+  const x=features(a,r.f,pats),sc=score(x),thr=scoreThr();
+  if(sc!=null&&sc<thr){if(!(sc>=thr-LC('explore_band')&&explorePick(a,mint)))return filt(a,`Signal-Score < ${thr.toFixed(2)}`,mint);explore=true;notes.push(`Erkundung (Score ${sc.toFixed(2)} knapp unter ${thr.toFixed(2)})`)}
+  const eq=equity(),frac=C('size_min')+(C('size_max')-C('size_min'))*r.strength;let mult=agentMult(a)*pm*(sc!=null?0.6+0.8*sc:1);
+  if(explore){mult*=C('explore_size');r.explore=true;cnt('explore')}
   if(ST.consec_losses>=C('loss_streak')){mult*=C('loss_scale');notes.push(`${ST.consec_losses} Verluste in Folge → halbe Größe`)}
   if(weakHour(hour())){mult*=0.5;notes.push('schwache Tageszeit → halbe Größe')}
   if(!isFinite(mult))mult=1;let usd=clamp(eq*frac*mult,eq*C('size_min')*0.5,eq*C('size_max'));usd=Math.min(usd,ST.cash-0.5);if(usd<C('min_trade_usd'))return filt(a,'zu wenig Cash',mint);
   Object.assign(r,{x,score:sc,pats,usd,notes,mult,frac});ENTERING.add(key);tryEnter(a,mint,r,tk,pair).finally(()=>ENTERING.delete(key))}
+/* Erkundung: ein Teil der knapp abgelehnten Signale wird mit kleinem Einsatz genommen, damit das Lernen nicht verhungert.
+   Eine Entscheidung je Agent+Coin für 2 min (sonst würfelt jede Neubewertung neu). Ohne Einstieg seit explore_idle_min Minuten steigt die Rate. */
+const EXPLORE=new Map();
+function explorePick(a,mint){const t=now(),k=a+':'+mint,c=EXPLORE.get(k);if(c&&t-c[0]<120)return c[1];
+  const last=Math.max(ST.last_entry_ts||0,ST.start_ts||t),rate=t-last>C('explore_idle_min')*60?C('explore_boost'):C('explore_rate');
+  const d=Math.random()<rate;EXPLORE.set(k,[t,d]);if(EXPLORE.size>3000)for(const [kk,v] of EXPLORE)if(t-v[0]>=120)EXPLORE.delete(kk);return d}
 async function tryEnter(a,mint,r,tk,pair){try{const venue=tk?'curve':'amm';const rep=await rug(mint,300);
   if(rep){const [top10,single]=holders(rep,tk?[tk.curve]:[]);const risks=(rep.risks||[]).map(x=>x.name||'');let bad=null;
     if(rep.rugged)bad='RugCheck: rugged';else if(rep.mintAuthority||rep.freezeAuthority)bad='Mint/Freeze-Authority aktiv';else if(risks.some(x=>x.includes('Creator history of rugged')))bad='Creator hat Rug-Historie';
@@ -899,8 +939,8 @@ const EXK=['tp1','tp1_frac','tp2','tp2_frac','trail','hard','time_s'];
 function openPos(a,mint,r,venue,tokens,cost,spot,sym,extra){ST.trade_seq++;const key=a+':'+mint,entry_px=cost/tokens,slip=spot?(entry_px/spot-1)*100:0;
   const e=Object.assign({},r.f,{slip,hour:hour(),fee_pct:venue==='curve'?C('pump_fee')*100:0});const ex={};for(const k of EXK)ex[k]=Pk(a,k);
   const pos=Object.assign({key,id:ST.trade_seq,agent:a,variant:r.variant,venue,mint,sym,tokens,orig_tokens:tokens,cost,proceeds:0,entry_px,entry_spot:spot,entry_ts:now(),peak_px:spot,low_px:spot,last_px:spot,
-    tp1:false,tp2:false,exiting:false,ex,reason:r.why,rug:r.rug||'',patterns:r.pats,x:r.x,score:r.score,e,tr:{},legs:[],exit_slip:0,rise_lim:r.rise_lim,dec:r.dec||6},extra);
-  ST.positions[key]=pos;astat(a).ent++;cnt('entries');
+    tp1:false,tp2:false,exiting:false,ex,reason:r.why,rug:r.rug||'',patterns:r.pats,x:r.x,score:r.score,e,tr:{},legs:[],exit_slip:0,rise_lim:r.rise_lim,dec:r.dec||6,explore:!!r.explore},extra);
+  ST.positions[key]=pos;astat(a).ent++;cnt('entries');ST.last_entry_ts=now();
   const tkimg=(TOKS.get(mint)||{}).img||pos.img||'';pos.img=tkimg;
   logLine('ENTER',`${ANAME[a]} [${r.variant}] ${venue==='curve'?'Bonding-Curve':'AMM'} · Größe ${money(cost)} (${(r.frac*100).toFixed(0)}% × ${r.mult.toFixed(2)}) · Fill ${fp(entry_px)} (Spot ${fp(spot)}, Kosten+Slippage ${slip.toFixed(2)}%, Latenz ${(extra.lat||0).toFixed(2)}s) · Cash ${money(ST.cash)} · ${r.why} · ${pos.rug} · Muster: ${r.pats.map(k=>PATN[k]).join(', ')||'keine'}${r.score!=null?' · Score '+r.score.toFixed(2):' · Score: Aufwärmphase'}${r.notes.length?' · '+r.notes.join('; '):''}`,
     {s:sym,m:mint,size:cost,fill:entry_px,img:tkimg,st:a});
@@ -913,10 +953,11 @@ function fillCurve(pd,tk,note){
     openPos(pd.agent,tk.mint,r,'curve',tokens,usd,spot,tk.sym,{curve:tk.curve,dev:tk.dev,vs:tk.vs,vt:tk.vt,lat:now()-pd.t0,img:tk.img||''})}
   else{const p=ST.positions[pd.key];if(!p)return;const spot=usdPx(tk),tok=sellTokens(p,pd.frac);bookSell(p,tok,curveSell(tok,tk.vs,tk.vt),spot,pd.reason,`${note}, Latenz ${(now()-pd.t0).toFixed(2)}s`)}}
 function sellTokens(p,frac){let tok=frac>=0.999?p.tokens:Math.min(p.tokens,p.orig_tokens*frac);if(p.tokens-tok<p.orig_tokens*0.02)tok=p.tokens;return tok}
-function requestExit(p,frac,reason,flag,tp){if(p.exiting)return;p.exiting=true;if(tp)p[tp]=true;if(flag)logLine('FLAG',`${ANAME[p.agent]} $${p.sym}: ${reason}`,{s:p.sym,st:p.agent});
+function requestExit(p,frac,reason,flag,tp){if(p.ct){if(/^(DEV|LP|RUG)/.test(reason))CT.safetyExit(p,reason);return}   /* Kopien: Ausstiege nach Copy-Regeln, Sicherheits-Exits (Dev/LP/Rug) gelten trotzdem */
+  if(p.exiting)return;p.exiting=true;if(tp)p[tp]=true;if(flag)logLine('FLAG',`${ANAME[p.agent]} $${p.sym}: ${reason}`,{s:p.sym,st:p.agent});
   const lat=rnd(C('lat_min'),C('lat_max'));const pd={kind:'sell',venue:p.venue,mint:p.mint,key:p.key,frac,reason,due:now()+lat,deadline:now()+lat+4,t0:now()};
   if(p.venue==='curve')PENDING.push(pd);else fillAmmSell(pd,lat)}
-function checkExit(p){if(p.exiting||!p.last_px)return;const ex=p.ex,x=p.last_px/p.entry_px,age=now()-p.entry_ts,chg=(x-1)*100;
+function checkExit(p){if(p.ct||p.exiting||!p.last_px)return;const ex=p.ex,x=p.last_px/p.entry_px,age=now()-p.entry_ts,chg=(x-1)*100;
   if(x<=1+ex.hard/100)requestExit(p,1,`HARD-STOP ${pct(chg)} (Limit ${ex.hard.toFixed(0)}%)`);
   else if(!p.tp1&&x>=1+ex.tp1/100)requestExit(p,ex.tp1_frac,`TP1 ${pct(chg)} → ${(ex.tp1_frac*100).toFixed(0)}% verkaufen`,false,'tp1');
   else if(p.tp1&&!p.tp2&&x>=1+ex.tp2/100)requestExit(p,ex.tp2_frac,`TP2 ${pct(chg)} → ${(ex.tp2_frac*100).toFixed(0)}% verkaufen`,false,'tp2');
@@ -931,7 +972,8 @@ function bookSell(p,tok,usd,spot,reason,note){if(!(tok>0)||!ST.positions[p.key])
   if(p.tokens<=p.orig_tokens*1e-6)closePos(p,reason);saveState(true)}
 function closePos(p,reason){delete ST.positions[p.key];const a=p.agent,tot=p.proceeds-p.cost,win=tot>0;const tr=p.tr;tr.vol_after=tr.vol60||0;tr.sell_ratio=tr.vol_after?(tr.sell60||0)/tr.vol_after:(tr.sell_ratio||0);
   const t={id:p.id,agent:a,variant:p.variant,venue:p.venue,sym:p.sym,mint:p.mint,img:p.img,pair:p.pair,entry_ts:p.entry_ts,exit_ts:now(),cost:p.cost,proceeds:p.proceeds,pnl:tot,pnl_pct:p.cost?tot/p.cost*100:0,
-    exit_reason:reason,legs:p.legs,entry_px:p.entry_px,exit_px:p.last_px,peak_x:p.peak_px/p.entry_px,low_x:p.low_px/p.entry_px,e:p.e,tr,x:p.x,score:p.score,patterns:p.patterns,reason:p.reason,rise_lim:p.rise_lim,exit_slip:p.exit_slip,hold_s:now()-p.entry_ts,pm:null};
+    exit_reason:reason,legs:p.legs,entry_px:p.entry_px,exit_px:p.last_px,peak_x:p.peak_px/p.entry_px,low_x:p.low_px/p.entry_px,e:p.e,tr,x:p.x,score:p.score,patterns:p.patterns,reason:p.reason,rise_lim:p.rise_lim,exit_slip:p.exit_slip,hold_s:now()-p.entry_ts,pm:null,
+    explore:!!p.explore,leader:p.leader,lname:p.lname,delay:p.delay,ct:!!p.ct};
   if(!win){t.pm=postMortem(t,null);logLine('LEARN',`Verlust-Analyse (vorläufig) ${ANAME[a]}: ${t.pm.text}`,{s:t.sym,st:a})}
   ST.recent_trades.push(t);if(ST.recent_trades.length>150)ST.recent_trades.shift();ST.closed_n++;const s=astat(a);s.n++;s.w+=win?1:0;s.pnl+=tot;
   ST.consec_losses=win?0:ST.consec_losses+1;ST.cooldown[p.key]=now()+C('cooldown_s');
@@ -978,7 +1020,6 @@ async function ammLoop(){const uni=new Map();const qs=['pumpswap','pumpfun','ray
     await sleep(Math.max(1000,C('amm_scan_s')*1000-(Date.now()-t0)))}}
 function evalAmm(m,p){if(!solUsd)return;const f=ammFeat(p),mg=MIGR.get(m);
   for(const a of mg?['migr']:['amm_mom','amm_dip']){if(!CFG.agents[a].on||ENTERING.has(a+':'+m))continue;const v=pickVariant(a),g=k=>Pk(a,k,v);let r=null;
-    if(f.liq_usd<g('min_liq')){filt(a,'Liquidität zu gering',m);continue}
     if(a==='migr'){const dt=now()-mg.t;if(f.m5>=g('max_pump'))r='nach Migration schon zu weit gepumpt';else if(f.buy_ratio<g('min_buy_ratio'))r='Kaufanteil nach Migration zu niedrig';else if(f.m5<=0)r='kein Aufwärtsdruck nach Migration';
       else r={why:`Migration vor ${dt.toFixed(0)}s (${p.dexId}) · Liq $${kfmt(f.liq_usd)} · 5m ${pct(f.m5,0)} · Kaufanteil ${(f.buy_ratio*100).toFixed(0)}%`,strength:clamp(0.5*(f.buy_ratio-0.5)*2+0.5*Math.min(1,f.m5/20),0,1),rise_lim:g('max_pump')}}
     else if(a==='amm_mom'){const win=Math.min(60,f.age_s/60)-5;if(f.age_s>g('max_age_h')*3600||f.m5<=g('min_m5'))r=null;else if(f.m5>=g('max_pump'))r='schon zu weit gepumpt';else if(win<5)r='zu jung für Volumen-Basis';
@@ -989,7 +1030,9 @@ function evalAmm(m,p){if(!solUsd)return;const f=ammFeat(p),mg=MIGR.get(m);
       if(pb<g('pb_min'))r=null;else if(pb>g('pb_max'))r='Pullback zu tief';else if(f.buy_ratio<g('min_buy_ratio'))r='noch kein Rebound';
       else if(s.length>=4&&pr<Math.min(...s.slice(-6).map(x=>x[1]))*1.005)r='noch kein Rebound vom Tief';
       else r={why:`AMM-Pullback −${pb.toFixed(1)}% nach 1h ${pct(f.h1,0)} / 6h ${pct(f.h6,0)} · Kaufanteil ${(f.buy_ratio*100).toFixed(0)}%`,strength:clamp(0.5+(f.buy_ratio-0.55),0,1),rise_lim:1e9}}}
-    if(r==null)continue;if(typeof r==='string'){filt(a,r,m);continue}r.f=f;r.variant=v;astat(a).sig++;gateEnter(a,m,r,null,p)}}
+    if(r==null)continue;if(typeof r==='string'){filt(a,r,m);continue}
+    if(f.liq_usd<g('min_liq')){filt(a,'Liquidität zu gering',m);continue}   /* erst NACH dem Signal: vorher zählte jeder gescannte Pool als „Liquidität zu gering“ */
+    r.f=f;r.variant=v;astat(a).sig++;gateEnter(a,m,r,null,p)}}
 async function ammPosLoop(){while(running()){await sleep(C('amm_poll_s')*1000);
   try{const ps=Object.values(ST.positions).filter(p=>p.venue==='amm');
     for(const p of ps)if(!p.pair){const r=await get('https://api.dexscreener.com/tokens/v1/solana/'+p.mint);const c=(Array.isArray(r)?r:[]).filter(x=>AMM_DEX.has(x.dexId));
@@ -1008,7 +1051,7 @@ async function holdChecks(){for(const p of Object.values(ST.positions)){const he
   if(bad)requestExit(p,1,`RUG-CHECK: ${bad} → sofort raus`,true);else p.rug=`RugCheck (gehalten ${held.toFixed(0)}s) ok: Top10 ${top10.toFixed(0)}%, Score ${rep.score_normalised}`}}
 
 /* ================= housekeeping ================= */
-let tickN=0;
+let tickN=0,DECAY_T=0;
 function tick(){if(!running())return;tickN++;
   for(let i=PENDING.length-1;i>=0;i--){const x=PENDING[i];if(now()<x.deadline)continue;PENDING.splice(i,1);const tk=TOKS.get(x.mint);
     if(tk)fillCurve(x,tk,'kein Trade nach Latenz → letzte Reserven');else{const p=ST.positions[x.key||''];if(p)p.exiting=false}}
@@ -1016,6 +1059,7 @@ function tick(){if(!running())return;tickN++;
     for(const tk of TOKS.values())if(!tk.stub&&tk.watch_until>t&&tk.watch_until-t<5&&t-tk.obs_t<C('watch_max_min')*60&&tk.win(60).length>=5)tk.watch_until=t+60;
     finalizeWatch(false);wsWatchdog();syncSubs()}
   if(tickN%20===0)holdChecks();
+  if(now()-DECAY_T>600){DECAY_T=now();if(decayAdj())saveLearn()}
   if(tickN%20===0){drawdown();filtFlush(false);pushEq(false);rates();saveState(false)}}
 /* half-open sockets (network hiccup, phone switching cell/wifi) never fire onclose – detect silence and rebuild */
 function wsWatchdog(){const t=now();
@@ -1079,10 +1123,10 @@ function startSession(sv){if(running())return;sv=Math.max(1,+sv||CFG.common.star
   logLine('SYSTEM',`Night Run v4 (Browser) gestartet · PAPER-TRADING · Startkapital ${money(sv)} · keine Wallet, keine Transaktionen · Lernstand: ${learnSrc} (${LRN.trades} Trades)`);
   saveState(true);startLoops();pushEv({type:'sys',kind:'START',title:'Session gestartet',text:'Paper-Trading mit '+money(sv)})}
 function resumeSession(){ST.restarts=(ST.restarts||0)+1;for(const p of Object.values(ST.positions)){p.exiting=false;
-    if(p.venue==='curve'){const tk=new Tok(p.mint,p.sym,'',p.curve||'',p.dev||'',p.vs||30,p.vt||1.073e9,0);tk.stub=true;tk.watch_until=now()+1e9;tk.img=p.img;addTok(tk)}}
+    if(p.venue==='curve'&&!p.ct){const tk=new Tok(p.mint,p.sym,'',p.curve||'',p.dev||'',p.vs||30,p.vt||1.073e9,0);tk.stub=true;tk.watch_until=now()+1e9;tk.img=p.img;addTok(tk)}}
   loadWallets();logLine('SYSTEM',`Session nach Neuladen fortgesetzt (#${ST.restarts}) · ${Object.keys(ST.positions).length} offene Positionen · Equity ${money(equity())}`);startLoops()}
 async function stopSession(){if(!running())return;ST.status='stopping';logLine('SYSTEM','STOP – schließe alle Positionen zum Marktpreis (simuliert)');PENDING.length=0;
-  for(const p of Object.values(ST.positions)){try{const tk=TOKS.get(p.mint);
+  for(const p of Object.values(ST.positions)){try{const tk=TOKS.get(p.mint);if(p.ct){CT.forceClose(p);continue}
       if(p.venue==='curve'&&tk&&tk.vt){bookSell(p,p.tokens,curveSell(p.tokens,tk.vs,tk.vt),usdPx(tk),'STOP (Session beendet, Marktpreis)','sofort, letzte Reserven')}
       else{p.exiting=true;await Promise.race([fillAmmSell({key:p.key,frac:1,reason:'STOP (Session beendet, Marktpreis)',t0:now()},0),sleep(12000)]);
         if(ST.positions[p.key])bookSell(p,p.tokens,Math.max(0,p.tokens*p.last_px*0.97),p.last_px,'STOP (Session beendet, Marktpreis)','Fallback: letzter Preis −3%')}}catch(e){}}
@@ -1091,13 +1135,13 @@ async function stopSession(){if(!running())return;ST.status='stopping';logLine('
   logLine('SYSTEM',`Session beendet · Equity ${money(equity())} · ${ST.closed_n} Trades`);saveState(true);saveLearn();histSave(true)}
 
 /* ---- einheitliche Ansicht (identisches Format wie /api/view der PC-Version) ---- */
-const POSK=['key','id','agent','variant','venue','mint','sym','img','cost','proceeds','entry_px','last_px','entry_ts','tp1','tp2','reason','patterns','score','exiting','rug'];
-const TRK=['id','agent','variant','venue','sym','mint','img','entry_ts','exit_ts','cost','proceeds','pnl','pnl_pct','exit_reason','legs','entry_px','exit_px','peak_x','low_x','hold_s','patterns','reason','score','pm','after'];
+const POSK=['key','id','agent','variant','venue','mint','sym','img','cost','proceeds','entry_px','last_px','entry_ts','tp1','tp2','reason','patterns','score','exiting','rug','explore','leader','lname','delay'];
+const TRK=['id','agent','variant','venue','sym','mint','img','entry_ts','exit_ts','cost','proceeds','pnl','pnl_pct','exit_reason','legs','entry_px','exit_px','peak_x','low_x','hold_s','patterns','reason','score','pm','after','explore','leader','lname','delay'];
 const pick=(o,ks)=>{const r={};for(const k of ks)if(o[k]!==undefined)r[k]=o[k];return r};
 function learnView(){const adj=[];for(const a in LRN.adj||{})for(const k in LRN.adj[a]){const d=(CFG.agents[a]||{})[k];adj.push({agent:a,key:k,from:d,to:LRN.adj[a][k]})}
   const w=LRN.logit.w.map((v,i)=>[FEAT_NAMES[i],v]).filter(x=>x[0]!=='bias');
   return {trades:LRN.trades,logit_n:LRN.logit.n,warmup:LC('warmup'),pattern_min_n:LC('pattern_min_n'),pattern_block_wr:LC('pattern_block_wr'),causes:LRN.causes,pat:LRN.pat,adj,events:LRN.events.slice(-40),bandit:LRN.bandit,agent_beta:LRN.agent_beta,hours:LRN.hours,weights:w,src:learnSrc,
-    cause_names:CAUSE,pat_names:PATN}}
+    cause_names:CAUSE,pat_names:PATN,score_thr:scoreThr(),base_wr:+baseWr().toFixed(3),explore:LRN.explore||[0,0],explore_rate:C('explore_rate'),copy_leaders:LRN.copy_leaders||{},veto:LRN.veto||{}}}
 function view(){const live=running()||ST.status==='stopping';const eq=ST.status==='idle'?ST.start_usd:equity();let watched=0;const t=now();for(const tk of TOKS.values())if(tk.watch_until>t)watched++;
   let sig=0;for(const a in ST.strat)sig+=ST.strat[a].sig||0;
   return {v:4,mode:'web',status:ST.status,paused:!!ST.paused,pause_reason:ST.pause_reason||'',pause_until:ST.pause_until||0,start_ts:ST.start_ts,stop_ts:ST.stop_ts||0,now:t,
@@ -1144,13 +1188,13 @@ const SUBD='₀₁₂₃₄₅₆₇₈₉';
 function fpx(p){if(!p||!isFinite(p))return '$0';if(p>=1)return '$'+p.toFixed(p>=100?2:4);const e=Math.floor(Math.log10(p));if(e<=-5){const z=-e-1;return '$0.0'+String(z).split('').map(c=>SUBD[c]).join('')+Math.round(p*10**(-e+3))}return '$'+p.toPrecision(4)}
 const dur=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(x).padStart(2,'0')};
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-const AC={sniper:'#22d3ee',mom:'#a78bfa',dip:'#ffc145',whale:'#4f8bff',migr:'#f472b6',amm_mom:'#19f0a0',amm_dip:'#fb7c5c'};
+const AC={sniper:'#22d3ee',mom:'#a78bfa',dip:'#ffc145',whale:'#4f8bff',migr:'#f472b6',amm_mom:'#19f0a0',amm_dip:'#fb7c5c',copy:'#7c5cff'};
 const ABBR={sniper:'SN',mom:'MO',dip:'DH',whale:'WT',migr:'MG',amm_mom:'AM',amm_dip:'AD'};
 const DESC={sniper:'kauft frische pump.fun-Coins mit starkem Start',mom:'springt auf Volumen- und Kurs-Ausbrüche',dip:'kauft Rücksetzer nach starken Anstiegen',whale:'folgt großen Käufen (Wale)',migr:'handelt Coins direkt nach der Migration zu PumpSwap',amm_mom:'Momentum auf DEX-Pools (Raydium, PumpSwap …)',amm_dip:'Dip-Käufe auf DEX-Pools'};
 const KEYL={hard:'Hard-Stop %',trail:'Trailing-Stop %',time_s:'Time-Stop (s)',min_buyers:'min. Käufer',vol_x:'Volumen-Faktor',min_buy_ratio:'min. Kaufquote',max_rise:'max. Anstieg %',max_chase:'max. Nachlauf %',max_pump:'max. Pump %',min_net_sol:'min. Netto-SOL',min_liq:'min. Liquidität $',max_dev_buy:'max. Dev-Kauf (SOL)'};
-const FEATL={age_min:'Alter des Coins',buy_ratio:'Kaufquote',buyers:'Anzahl Käufer',net_sol:'Netto-Zufluss SOL',rise:'Anstieg seit Start',ret_w:'Anstieg im Fenster',vol_spike:'Volumen-Spike',dev_buy:'Dev-Kauf',first2:'Käufe in ersten 2 s',top10:'Top-10-Holder %',h_sin:'Tageszeit (sin)',h_cos:'Tageszeit (cos)',mcap:'Marktkapitalisierung',curve:'Bonding-Curve',p_klimax:'Muster: Volumen-Klimax',p_hoehere_tiefs:'Muster: Höhere Tiefs',p_ausbruch:'Muster: Ausbruch',p_v_rev:'Muster: V-Umkehr',p_blowoff:'Muster: Blow-off-Top',p_bleed:'Muster: Ausbluten',a_sniper:'Agent Sniper',a_mom:'Agent Momentum',a_dip:'Agent Dip Hunter',a_whale:'Agent Whale Tail',a_migr:'Agent Migration',a_amm:'Agent DEX-Pools'};
+const FEATL={age_min:'Alter des Coins',buy_ratio:'Kaufquote',buyers:'Anzahl Käufer',net_sol:'Netto-Zufluss SOL',rise:'Anstieg seit Start',ret_w:'Anstieg im Fenster',vol_spike:'Volumen-Spike',dev_buy:'Dev-Kauf',first2:'Käufe in ersten 2 s',top10:'Top-10-Holder %',h_sin:'Tageszeit (sin)',h_cos:'Tageszeit (cos)',mcap:'Marktkapitalisierung',curve:'Bonding-Curve',p_klimax:'Muster: Volumen-Klimax',p_hoehere_tiefs:'Muster: Höhere Tiefs',p_ausbruch:'Muster: Ausbruch',p_v_rev:'Muster: V-Umkehr',p_blowoff:'Muster: Blow-off-Top',p_bleed:'Muster: Ausbluten',a_sniper:'Agent Sniper',a_mom:'Agent Momentum',a_dip:'Agent Dip Hunter',a_whale:'Agent Whale Tail',a_migr:'Agent Migration',a_amm:'Agent DEX-Pools',a_copy:'Kopie eines Traders',c_leader:'Kopier-Bilanz des Traders'};
 const VARN={streng:'streng',basis:'basis',locker:'locker'};
-let NAMES={sniper:'Sniper',mom:'Momentum',dip:'Dip Hunter',whale:'Whale Tail',migr:'Migration',amm_mom:'Momentum (AMM)',amm_dip:'Dip Hunter (AMM)'};
+let NAMES={sniper:'Sniper',mom:'Momentum',dip:'Dip Hunter',whale:'Whale Tail',migr:'Migration',amm_mom:'Momentum (AMM)',amm_dip:'Dip Hunter (AMM)',copy:'Copy-Trading'};
 const nm=a=>NAMES[a]||a;
 const LSG=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},LSS=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 function avatar(sym,img,a,sm){const l=E(String(sym||'?').replace(/^\$/,'').slice(0,2).toUpperCase());const st=`--ac:${AC[a]||'#444'}`;
@@ -1314,7 +1358,7 @@ function renderBandit(v){const L=v.learning||{};const b=L.bandit||{},ab=L.agent_
 function renderLearn(v){const L=v.learning||{};const CN=L.cause_names||{},PN=L.pat_names||{};Q('lnSrc').textContent=L.src||'';
   const losses=v.trades.filter(t=>t.pnl<=0&&t.pm&&!t.pm.manual).reverse();const warm=L.warmup||25,ln=L.logit_n||0;
   Q('lnKpi').innerHTML=`<div class="kpi"><span>Gelernte Trades</span><b class="num" style="font-size:22px">${L.trades||0}</b></div>
-   <div class="kpi"><span>Signal-Score</span><b style="font-size:16px">${ln>=warm?'<span class="pos">aktiv</span>':'Aufwärmphase'}</b><div class="prog"><i style="width:${Math.min(100,ln/warm*100)}%"></i></div><small class="mut num" style="font-size:10.5px">${Math.min(ln,warm)}/${warm} Trades</small></div>
+   <div class="kpi"><span>Signal-Score</span><b style="font-size:16px">${ln>=warm?'<span class="pos">aktiv</span>':'Aufwärmphase'}</b><div class="prog"><i style="width:${Math.min(100,ln/warm*100)}%"></i></div><small class="mut num" style="font-size:10.5px">${Math.min(ln,warm)}/${warm} Trades${L.score_thr!=null?` · Schwelle ${String(L.score_thr).replace('.',',')} (Grundquote ${Math.round((L.base_wr||0)*100)} %)`:''}${L.explore_rate!=null?` · Erkundung ${Math.round(L.explore_rate*100)} % (${(L.explore||[0])[0]} Trades)`:''}</small></div>
    <div class="kpi"><span>Aktive Anpassungen</span><b class="num" style="font-size:22px">${(L.adj||[]).length}</b></div>
    <div class="kpi"><span>Verlust-Analysen (Session)</span><b class="num" style="font-size:22px">${losses.length}</b></div>`;
   const agg={},by={};for(const a in (L.causes||{}))for(const k in L.causes[a]){agg[k]=(agg[k]||0)+L.causes[a][k];(by[k]=by[k]||[]).push([a,L.causes[a][k]])}
@@ -1543,7 +1587,9 @@ return {parse,merged,describe,exitDecision,DEFAULT,STOP,part,fmt}})();
    Keine Wallet, keine Schlüssel, nie signieren/senden, kein Ein-/Auszahlen. Nur öffentliche Daten:
    eigene Verbindung zum öffentlichen Solana-RPC (logsSubscribe „mentions“ = je verfolgter Wallet bzw. je Bonding-Curve eines kopierten Coins
    -> pump.fun TradeEvents), RugCheck (Dev-Anteil, Top-10), DexScreener (Kurs nach Migration), Jupiter (SOL-Kurs).
-   PumpPortal subscribeAccountTrade wird NICHT benutzt: seit Mai 2026 nur mit API-Key + verknüpfter Wallet (kostenpflichtig). */
+   PumpPortal subscribeAccountTrade wird NICHT benutzt: seit Mai 2026 nur mit API-Key + verknüpfter Wallet (kostenpflichtig).
+   EIN KONTO: Kopien laufen als Agent „copy“ im Night-Run-Konto (ST: Kasse, Positionen, Kapitalkurve, Trade-Liste) und landen im selben
+   Lernen (Agent-Bilanz, Signal-Score, Trader-Bilanz, Veto-Ergebnisse). Hier bleiben nur Regeln, Trader, Vetos, Feed, Charts, Statistik. */
 const CT=(()=>{
 const LSK='nightrun4.copy',SUPPLY=1e9,PUMP_FEE=0.01,DEX_FEE=0.0025,DEX_SLIP=0.01,LAT=[0.5,1.5],PRIO=[0.01,0.05],VETO_WATCH_S=1800,MAX_WALLETS=25;
 const AG=[['watcher','Watcher','sieht die Käufe der Trader','👀'],['copier','Copier','kauft mit Spielgeld nach','⚡'],['risk','Risk','prüft die Regeln, legt Veto ein','🛡️'],['exit','Exit','Stop, Gewinnmitnahme, Trailing','🎯']];
@@ -1554,15 +1600,28 @@ const susd=(x,d=2)=>((+x||0)>=0?'+':'−')+'$'+Math.abs(+x||0).toLocaleString('e
 const r2=x=>Math.round(x*100)/100;const rr=(a,b)=>a+Math.random()*(b-a);
 const kf=v=>!v?'–':v>=1e6?'$'+(v/1e6).toFixed(1)+'M':'$'+(v/1e3).toFixed(1)+'k';
 const short=a=>String(a||'').slice(0,4)+'…'+String(a||'').slice(-4);
-function newState(usd,status,old){old=old||{};return {v:1,status:status||'running',start_usd:+usd,cash:+usd,start_ts:tnow(),positions:{},closed:[],vetoes:[],feed:[],charts:{},seq:0,
-  stats:{copies:0,green:0,red:0,vetoed:0,avoided:0,missed:0,skipped:0},eq_hist:[[Math.round(tnow()),+usd]],rules:old.rules||{},rules_text:old.rules_text||'',
-  follow:old.follow||[],names:old.names||{},leaders:old.leaders||{},sol_usd:old.sol_usd||0,last_close_day:null,pid:0,vid:0}}
-let S=(()=>{try{const s=JSON.parse(localStorage.getItem(LSK)||'null');if(s&&s.v===1)return s}catch(e){}return newState(70,'idle')})();
+function newState(status,old){old=old||{};return {v:2,status:status||'idle',start_ts:tnow(),closed:[],vetoes:[],feed:[],charts:{},seq:0,
+  stats:{copies:0,green:0,red:0,vetoed:0,avoided:0,missed:0,skipped:0},rules:old.rules||{},rules_text:old.rules_text||'',
+  follow:old.follow||[],names:old.names||{},leaders:old.leaders||{},sol_usd:old.sol_usd||0,last_close_day:null,pid:old.pid||0,vid:old.vid||0,alt_konto:old.alt_konto||null}}
+/* altes eigenes Copy-Konto (v1): offene Kopien zum letzten Kurs abschließen, Verlauf/Regeln/Trader behalten, ab jetzt nur das Night-Run-Konto */
+function migrate(o){const t=tnow();let ende=+o.cash||0,n=0;for(const p of Object.values(o.positions||{})){const out=Math.max(0,(p.tokens||0)*(p.last_px||p.entry_px||0)*0.99);ende+=out;n++;
+    const tot=(p.proceeds||0)+out-(p.cost||0);(o.closed=o.closed||[]).push({id:p.id,leader:p.leader,lname:p.lname,mint:p.mint,sym:p.sym,cost:p.cost,entry_px:p.entry_px,entry_ts:p.entry_ts,t_leader:p.t_leader,
+      mc_leader:p.mc_leader,mc_entry:p.mc_entry,delay:p.delay,slip:p.slip,legs:(p.legs||[]).concat(['UMSTELLUNG']),proceeds:(p.proceeds||0)+out,pnl:tot,pnl_pct:p.cost?tot/p.cost*100:0,exit_ts:t,exit_px:p.last_px,why:'Umstellung auf ein Konto (letzter Kurs)',note:p.note});
+    const st=o.stats=o.stats||{};st[tot>0?'green':'red']=(st[tot>0?'green':'red']||0)+1;const ld=(o.leaders||{})[p.leader];if(ld)ld.copy_pnl=(ld.copy_pnl||0)+tot}
+  const S2=Object.assign(newState(o.status==='running'?'running':'idle',o),{closed:(o.closed||[]).slice(-200),vetoes:o.vetoes||[],feed:o.feed||[],charts:o.charts||{},seq:o.seq||0,stats:Object.assign(newState().stats,o.stats||{})});
+  S2.alt_konto={start_usd:+o.start_usd||0,ende_usd:Math.round(ende*100)/100,t,kopien:n};S2.seq++;
+  S2.feed.push({seq:S2.seq,t,k:'sys',a:'watcher',txt:`Umstellung: Copy-Trading läuft jetzt im Night-Run-Konto. Altes Copy-Konto ${usd(+o.start_usd||0)} → ${usd(ende)} abgeschlossen${n?` (${n} offene Kopien zum letzten Kurs geschlossen)`:''}.`});return S2}
+let S=(()=>{try{const s=JSON.parse(localStorage.getItem(LSK)||'null');if(s&&s.v===2)return s;if(s&&s.v===1){const m=migrate(s);try{localStorage.setItem(LSK,JSON.stringify(m))}catch(e){}return m}}catch(e){}return newState('idle')})();
+/* Zugriff aufs gemeinsame Konto (Night-Run-Engine) */
+const positions=()=>Object.values(ST.positions).filter(p=>p.ct);
+const botLive=()=>ST.status==='running'&&!ST.paused;
+const ENG_TAG={STOP:'HARD-STOP',TRAIL:'TRAILING-STOP',ZEIT:'TIME-STOP'};   /* „STOP…“ heißt in der Engine Session-Stop (zählt nicht fürs Lernen) */
+const capOpen=()=>Math.min(R().max_open||3,C('copy_max_open'));
 const PX=new Map(),pending=[],seen=new Set(),seenQ=[];let dirty=false,savedT=0,solT=0,dsNext=new Map(),cnt={leader_buys:0,trades:0,rpc:0};
 const agent={};for(const [k,,d] of AG)agent[k]={st:'bereit',txt:d,t:0,last:null};
 const fset=()=>new Set(S.follow);
 function save(){try{S.charts=pruneCharts();localStorage.setItem(LSK,JSON.stringify(S));dirty=false;savedT=tnow()}catch(e){}}
-function pruneCharts(){const keep=new Set([...Object.values(S.positions).map(p=>'c'+p.id),...S.closed.slice(-40).map(t=>'c'+t.id),...S.vetoes.slice(-30).map(v=>'v'+v.id)]);
+function pruneCharts(){const keep=new Set([...positions().map(p=>'c'+p.ct_id),...S.closed.slice(-40).map(t=>'c'+t.id),...S.vetoes.slice(-30).map(v=>'v'+v.id)]);
   const o={};for(const k in S.charts)if(keep.has(k))o[k]=S.charts[k];return o}
 const R=()=>CTR.merged(S.rules);
 const running=()=>S.status==='running';
@@ -1574,10 +1633,10 @@ function feed(kind,txt,ag,kw){S.seq++;const e=Object.assign({seq:S.seq,t:tnow(),
 function pxEntry(m,sym){let e=PX.get(m);if(!e){e={vs:0,vt:0,ps:0,t:0,src:null,migr:false,sym:sym||null,pt:0};PX.set(m,e)}if(sym&&!e.sym)e.sym=sym;return e}
 function symOf(m){const e=PX.get(m);if(e&&e.sym)return e.sym;try{const tk=TOKS.get(m);if(tk&&tk.sym&&tk.sym!=='?')return tk.sym}catch(x){}return m.slice(0,4)}
 async function fetchSym(m){const e=pxEntry(m);if(e.sym||e.symReq)return;e.symReq=1;const j=await get('https://api.dexscreener.com/latest/dex/tokens/'+m);
-  try{const p=(j.pairs||[])[0];if(p&&p.baseToken&&p.baseToken.symbol){e.sym=String(p.baseToken.symbol).slice(0,16);for(const x of Object.values(S.positions))if(x.mint===m)x.sym=e.sym;dirty=true}}catch(x){}}
+  try{const p=(j.pairs||[])[0];if(p&&p.baseToken&&p.baseToken.symbol){e.sym=String(p.baseToken.symbol).slice(0,16);for(const x of positions())if(x.mint===m)x.sym=e.sym;dirty=true}}catch(x){}}
 function chartPt(key,t,pu){const c=S.charts[key];if(c){c.pts.push([r2(t),pu]);if(c.pts.length>500)c.pts.splice(0,c.pts.length-500)}}
 function touch(m,e){const t=tnow();if(t-e.pt<2)return;e.pt=t;const su=solPx();if(!su||!e.ps)return;const pu=e.ps*su;
-  for(const p of Object.values(S.positions))if(p.mint===m)chartPt('c'+p.id,t,pu);for(const v of S.vetoes)if(v.open&&v.mint===m)chartPt('v'+v.id,t,pu)}
+  for(const p of positions())if(p.mint===m)chartPt('c'+p.ct_id,t,pu);for(const v of S.vetoes)if(v.open&&v.mint===m)chartPt('v'+v.id,t,pu)}
 /* ---- ein pump.fun-Trade (aus dem RPC-Strom oder – in Tests – direkt) ---- */
 function onTrade(d){const m=d.mint,u=d.user;if(!m)return;const key=d.key;if(key){if(seen.has(key))return;seen.add(key);seenQ.push(key);if(seenQ.length>20000)seen.delete(seenQ.shift())}
   cnt.trades++;const e=PX.get(m);if(e){upd(e,d);touch(m,e)}if(u&&fset().has(u))leaderTrade(u,d)}
@@ -1591,17 +1650,20 @@ function leaderTrade(a,d){const m=d.mint,L=S.leaders;let ld=L[a];if(!ld)ld=L[a]=
 function leaderStats(a){const ld=S.leaders[a]||{};const su=solPx();let un=0;for(const [m,p] of Object.entries(ld.pos||{})){const e=PX.get(m);if(e&&e.ps)un+=Math.max(p[2]-p[3],0)*e.ps+p[1]-p[0]}
   const n=ld.n||0;return {addr:a,name:nameOf(a),follow:fset().has(a),n,w:ld.w||0,wr:n?Math.round(ld.w/n*100):null,pnl_sol:ld.pnl||0,pnl_usd:su?(ld.pnl||0)*su:null,offen:Object.keys(ld.pos||{}).length,
     unreal_sol:un,buys:ld.buys||0,copy_pnl:ld.copy_pnl||0,copies:ld.copies||0,vetoes:ld.vetoes||0,last:ld.last||0}}
-function equity(){const su=solPx();let v=S.cash;for(const p of Object.values(S.positions)){const e=PX.get(p.mint);if(e&&e.ps&&su)p.last_px=e.ps*su;v+=p.tokens*(p.last_px||p.entry_px)}return v}
-function sizeUsd(){const r=R();return r.size_usd?+r.size_usd:Math.max(1,equity()*(r.size_pct||10)/100)}
+function eqNow(){const su=solPx();for(const p of positions()){const e=PX.get(p.mint);if(e&&e.ps&&su)p.last_px=e.ps*su}return equity()}
+/* Einsatz: Regel × Trader-Bilanz (gelernt), höchstens copy_size_max vom Konto */
+function sizeUsd(leader){const r=R(),eq=eqNow();let u=r.size_usd?+r.size_usd:Math.max(1,eq*(r.size_pct||10)/100);if(leader)u*=leaderMult(leader);return Math.min(u,eq*C('copy_size_max'))}
+function ctFeat(b,e,su){const mc=b.mc_leader||(e&&e.ps&&su?e.ps*SUPPLY*su:0);return {venue:'curve',age_s:60,buy_ratio:0.5,buyers:1,net_sol:b.leader_sol||0,rise:0,mcap_usd:mc||0,c_leader:leaderFeat(b.leader)}}
 function onLeaderBuy(a,m,sol,e){const su=solPx(),sym=symOf(m);fetchSym(m);const mc=e.ps&&su?e.ps*SUPPLY*su:null;
   feed('seen',`${nameOf(a)} kaufte $${sym} für ${sol.toFixed(2)} SOL`+(mc?` · MC ${kf(mc)}`:''),'watcher',{sym,mint:m,leader:a});if(!running())return;const r=R(),t=tnow();
-  if(Object.values(S.positions).some(p=>p.mint===m)||pending.some(x=>x.mint===m&&x.kind==='buy')){S.stats.skipped++;feed('skip',`$${sym}: schon kopiert (anderer Trader) – kein zweiter Kauf`,'copier',{sym,mint:m,leader:a});return}
+  if(!botLive()){S.stats.skipped++;feed('skip',`$${sym}: Night-Run-Bot ist gestoppt/pausiert – keine Kopie (ein Konto)`,'copier',{sym,mint:m,leader:a});return}
+  if(positions().some(p=>p.mint===m)||pending.some(x=>x.mint===m&&x.kind==='buy')){S.stats.skipped++;feed('skip',`$${sym}: schon kopiert (anderer Trader) – kein zweiter Kauf`,'copier',{sym,mint:m,leader:a});return}
   const base={leader:a,mint:m,sym,t_leader:t,px_leader:e.ps&&su?e.ps*su:null,mc_leader:mc,leader_sol:sol};
   if(!su)return skip(base,'SOL-Kurs noch unbekannt');
   if(r.min_leader_sol&&sol<r.min_leader_sol)return veto(base,`Trader kaufte nur ${sol.toFixed(2)} SOL (Regel ≥ ${r.min_leader_sol})`,'min_leader_sol');
   if(r.mc_max&&mc&&mc>r.mc_max)return veto(base,`MC ${kf(mc)} (Regel ≤ ${kf(r.mc_max)})`,'mc_max');
   if(r.mc_min&&mc&&mc<r.mc_min)return veto(base,`MC ${kf(mc)} (Regel ≥ ${kf(r.mc_min)})`,'mc_min');
-  if(Object.keys(S.positions).length+pending.filter(x=>x.kind==='buy').length>=r.max_open)return veto(base,`schon ${r.max_open} Kopien offen (Regel max. ${r.max_open})`,'max_open');
+  const cap=capOpen();if(positions().length+pending.filter(x=>x.kind==='buy').length>=cap)return veto(base,`schon ${cap} Kopien offen (Regel max. ${r.max_open}, Konto-Grenze ${C('copy_max_open')})`,'max_open');
   if(e.migr)return skip(base,'Coin ist schon migriert – Kopie nur auf der Bonding-Curve');
   const lat=rr(LAT[0],LAT[1]);const pd=Object.assign({},base,{kind:'buy',due:t+r.delay_s+lat,t0:t,lat,risk:null,dev_pct:null});
   const need=r.dev_max!=null||r.top10_max!=null;if(!need)pd.risk=['ok',''];pending.push(pd);agent.copier.st='wartet';
@@ -1616,48 +1678,58 @@ function checkRisk(pd,rep){const r=R();if(!rep||typeof rep!=='object'){pd.risk=[
   if(r.top10_max!=null){let t10=null;try{t10=holders(rep)[0]}catch(e){}if(t10!=null&&(rep.topHolders||[]).length&&t10>r.top10_max){pd.risk=['veto',`Top-10 halten ${t10.toFixed(0)} % (Regel > ${r.top10_max} %)`,'top10_max'];return}}
   pd.risk=['ok',notes.join(' · ')]}
 function veto(b,why,rule,dp){S.stats.vetoed++;S.vid++;const su=solPx(),e=PX.get(b.mint)||{};const px=e.ps&&su?e.ps*su:b.px_leader;
-  const v={id:S.vid,t:tnow(),leader:b.leader,lname:nameOf(b.leader),mint:b.mint,sym:b.sym,why,rule,px0:px,mc0:b.mc_leader,size:r2(sizeUsd()),open:!!px,peak:px,rest:1,got:0,tp:[],res:null,dev_pct:dp??null};
+  const v={id:S.vid,t:tnow(),leader:b.leader,lname:nameOf(b.leader),mint:b.mint,sym:b.sym,why,rule,px0:px,mc0:b.mc_leader,size:r2(sizeUsd(b.leader)),open:!!px,peak:px,rest:1,got:0,tp:[],res:null,dev_pct:dp??null,
+    x:features('copy',ctFeat(b,e,su),[])};
   S.vetoes.push(v);if(S.vetoes.length>100)S.vetoes.shift();const ld=S.leaders[b.leader];if(ld)ld.vetoes=(ld.vetoes||0)+1;
   if(px){pxEntry(b.mint,b.sym);S.charts['v'+v.id]={mint:b.mint,sym:b.sym,pts:[[r2(v.t),px]],fills:[{t:b.t_leader||v.t,px:b.px_leader||px,side:'leader',label:v.lname.slice(0,12),mc:b.mc_leader},{t:v.t,px,side:'veto',label:'VETO'}]}}
   feed('veto',`Veto $${b.sym}: ${why}`,'risk',{sym:b.sym,mint:b.mint,leader:b.leader,vid:v.id});return v}
-function fillBuy(pd){const su=solPx(),e=PX.get(pd.mint)||{};const usdIn=Math.min(sizeUsd(),S.cash-0.5);
-  if(usdIn<1)return skip(pd,`zu wenig Spielgeld (${usd(S.cash)})`);if(!su||!e.ps)return skip(pd,'kein aktueller Kurs');if(e.migr)return skip(pd,'während der Verzögerung migriert');
+function fillBuy(pd){if(!botLive())return skip(pd,'Night-Run-Bot ist gestoppt/pausiert');const su=solPx(),e=PX.get(pd.mint)||{};const usdIn=Math.min(sizeUsd(pd.leader),ST.cash-0.5);
+  if(usdIn<1)return skip(pd,`zu wenig Spielgeld (${usd(ST.cash)})`);if(ST.positions['copy:'+pd.mint])return skip(pd,'Coin schon als Kopie im Konto');if(!su||!e.ps)return skip(pd,'kein aktueller Kurs');if(e.migr)return skip(pd,'während der Verzögerung migriert');
   const prio=rr(PRIO[0],PRIO[1]),spot=e.ps*su;let tokens,note;
   if(e.vs&&e.vt){const solNet=(usdIn-prio)/su*(1-PUMP_FEE);tokens=e.vt-(e.vs*e.vt)/(e.vs+solNet);note='Bonding-Curve'}else{tokens=(usdIn-prio)*(1-PUMP_FEE)*(1-DEX_SLIP)/spot;note='Kurs ohne Kurve: 1 % Slippage angenommen'}
-  if(!(tokens>0))return skip(pd,'Kauf-Rechnung ergab 0 Tokens');S.cash-=usdIn;S.pid++;const t=tnow(),entry=usdIn/tokens;
-  const p={id:S.pid,leader:pd.leader,lname:nameOf(pd.leader),mint:pd.mint,sym:pd.sym,cost:usdIn,tokens,orig:tokens,entry_px:entry,spot0:spot,last_px:spot,peak_px:spot,entry_ts:t,t_leader:pd.t_leader,
-    px_leader:pd.px_leader,mc_leader:pd.mc_leader,mc_entry:e.ps*SUPPLY*su,delay:Math.round((t-pd.t_leader)*10)/10,slip:r2((entry/spot-1)*100),proceeds:0,legs:[],tp_done:[],exiting:false,
-    note:[note,(pd.risk||[])[1]].filter(Boolean).join(' · ')};
-  S.positions[p.id]=p;S.stats.copies++;const ld=S.leaders[pd.leader];if(ld)ld.copies=(ld.copies||0)+1;
-  S.charts['c'+p.id]={mint:pd.mint,sym:pd.sym,pts:[[r2(pd.t_leader),pd.px_leader||spot],[r2(t),spot]],fills:[{t:pd.t_leader,px:pd.px_leader||spot,side:'leader',label:p.lname.slice(0,12),mc:pd.mc_leader},{t,px:entry,side:'buy',label:`KOPIE +${Math.round(p.delay)}s`,usd:usdIn,mc:p.mc_entry}]};
-  feed('buy',`Kopie $${pd.sym} (${p.lname}) +${Math.round(p.delay)} s · ${usd(usdIn)} @ MC ${kf(p.mc_entry)} · Slippage ${p.slip>=0?'+':''}${p.slip.toFixed(1)} %`,'copier',{sym:pd.sym,mint:pd.mint,leader:pd.leader,usd:usdIn,pid:p.id});save();return p}
+  if(!(tokens>0))return skip(pd,'Kauf-Rechnung ergab 0 Tokens');S.pid++;const t=tnow(),entry=usdIn/tokens;
+  const f=ctFeat(pd,e,su),x=features('copy',f,[]),sc=score(x),lm=leaderMult(pd.leader);
+  const rr_={why:`Kopie ${nameOf(pd.leader)} (+${Math.round(t-pd.t_leader)} s)`,variant:'basis',f,pats:[],x,score:sc,rise_lim:1e9,frac:usdIn/Math.max(eqNow(),1),mult:lm,notes:lm!==1?[`Trader-Bilanz × ${lm.toFixed(2)}`]:[],rug:(pd.risk||[])[1]||''};
+  ST.cash-=usdIn;   /* EIN Konto: das Night-Run-Konto bezahlt */
+  const p=openPos('copy',pd.mint,rr_,'curve',tokens,usdIn,spot,pd.sym,{ct:true,ct_id:S.pid,leader:pd.leader,lname:nameOf(pd.leader),t_leader:pd.t_leader,px_leader:pd.px_leader,mc_leader:pd.mc_leader,
+    mc_entry:e.ps*SUPPLY*su,delay:Math.round((t-pd.t_leader)*10)/10,ct_slip:r2((entry/spot-1)*100),tp_done:[],ct_legs:[],ct_t0:t,note:[note,(pd.risk||[])[1]].filter(Boolean).join(' · '),lat:pd.lat||0});
+  S.stats.copies++;const ld=S.leaders[pd.leader];if(ld)ld.copies=(ld.copies||0)+1;
+  S.charts['c'+p.ct_id]={mint:pd.mint,sym:pd.sym,pts:[[r2(pd.t_leader),pd.px_leader||spot],[r2(t),spot]],fills:[{t:pd.t_leader,px:pd.px_leader||spot,side:'leader',label:p.lname.slice(0,12),mc:pd.mc_leader},{t,px:entry,side:'buy',label:`KOPIE +${Math.round(p.delay)}s`,usd:usdIn,mc:p.mc_entry}]};
+  feed('buy',`Kopie $${pd.sym} (${p.lname}) +${Math.round(p.delay)} s · ${usd(usdIn)} @ MC ${kf(p.mc_entry)} · Slippage ${p.ct_slip>=0?'+':''}${p.ct_slip.toFixed(1)} %${sc!=null?' · Score '+sc.toFixed(2):''}`,'copier',{sym:pd.sym,mint:pd.mint,leader:pd.leader,usd:usdIn,pid:p.ct_id});save();return p}
 function onLeaderSell(a,m,fr,sol,e){const sym=symOf(m);feed('seen',`${nameOf(a)} verkaufte ${(fr*100).toFixed(0)} % von $${sym} (${sol.toFixed(2)} SOL)`,'watcher',{sym,mint:m,leader:a});
   const r=R();if(!r.mirror_sells)return;const su=solPx();
   for(const v of S.vetoes)if(v.open&&v.res==null&&v.mint===m&&v.leader===a&&v.rest>1e-6&&e.ps&&su&&v.px0){const x=e.ps*su/v.px0,part=fr>=0.9?v.rest:Math.min(v.rest,fr);v.got+=part*x;v.rest-=part;v.last=e.ps*su;v.exit_why=`Trader verkauft ${(fr*100).toFixed(0)} %`}
-  for(const p of Object.values(S.positions))if(p.mint===m&&p.leader===a&&!p.exiting)requestExit(p,fr>=0.9?1:fr,`Trader verkauft ${(fr*100).toFixed(0)} %`,'MIRROR')}
-function requestExit(p,frac,why,tag){if(p.exiting)return;p.exiting=true;const lat=rr(LAT[0],LAT[1]);pending.push({kind:'sell',pid:p.id,frac,why,tag,due:tnow()+lat,mint:p.mint});agent.exit.st=tag;agent.exit.t=tnow()}
-function checkExits(){const r=R(),su=solPx(),t=tnow();for(const p of Object.values(S.positions)){if(p.exiting)continue;const e=PX.get(p.mint)||{};if(e.ps&&su)p.last_px=e.ps*su;
-  const x=p.entry_px?p.last_px/p.entry_px:1;p.peak_px=Math.max(p.peak_px,p.last_px);const a=CTR.exitDecision(r,x,p.peak_px/p.entry_px,p.tp_done,(t-p.entry_ts)/60);
+  for(const p of positions())if(p.mint===m&&p.leader===a&&!p.exiting)requestExit(p,fr>=0.9?1:fr,`Trader verkauft ${(fr*100).toFixed(0)} %`,'MIRROR')}
+function requestExit(p,frac,why,tag,engReason){if(p.exiting)return;p.exiting=true;const lat=rr(LAT[0],LAT[1]);pending.push({kind:'sell',key:p.key,frac,why,tag,eng:engReason||null,due:tnow()+lat,mint:p.mint});agent.exit.st=tag;agent.exit.t=tnow()}
+/* Sicherheits-Exit der Engine (Dev verkauft, LP weg, RugCheck) gilt auch für Kopien */
+function safetyExit(p,reason){if(!p.ct)return;p.exiting=false;const tag=/^DEV/.test(reason)?'DEV':/^LP/.test(reason)?'LP':'RUG';requestExit(p,1,reason.replace(/^[A-Z-]+:\s*/,''),tag,reason);feed('sys',`$${p.sym}: Sicherheits-Exit – ${reason}`,'exit',{sym:p.sym,mint:p.mint,leader:p.leader})}
+function checkExits(){const r=R(),su=solPx(),t=tnow();for(const p of positions()){if(p.exiting)continue;const e=PX.get(p.mint)||{};if(e.ps&&su)p.last_px=e.ps*su;
+  const x=p.entry_px?p.last_px/p.entry_px:1;p.peak_px=Math.max(p.peak_px,p.last_px);const a=CTR.exitDecision(r,x,p.peak_px/p.entry_px,p.tp_done,(t-(p.ct_t0||p.entry_ts))/60);
   if(a){if(a[3]!=null)p.tp_done.push(a[3]);requestExit(p,a[0],a[1],a[2])}}}
-function fillSell(pd){const p=S.positions[pd.pid];if(!p)return;const su=solPx(),e=PX.get(p.mint)||{};let tok=pd.frac>=0.999?p.tokens:Math.min(p.tokens,p.orig*pd.frac);if(p.tokens-tok<p.orig*0.02)tok=p.tokens;
+function sellMath(p,frac){const su=solPx(),e=PX.get(p.mint)||{};let tok=frac>=0.999?p.tokens:Math.min(p.tokens,p.orig_tokens*frac);if(p.tokens-tok<p.orig_tokens*0.02)tok=p.tokens;
   const prio=rr(PRIO[0],PRIO[1]),spot=e.ps&&su?e.ps*su:p.last_px;let out;
-  if(e.vs&&e.vt&&!e.migr&&su){const so=e.vs-(e.vs*e.vt)/(e.vt+tok);out=Math.max(0,so*(1-PUMP_FEE)*su-prio)}else out=Math.max(0,tok*spot*(1-DEX_FEE)*(1-DEX_SLIP)-prio);
-  const cost=p.cost*tok/p.orig,pnl=out-cost;p.tokens-=tok;p.proceeds+=out;p.last_px=spot;p.legs.push(pd.tag);p.exiting=false;S.cash+=out;const t=tnow();
-  const ch=S.charts['c'+p.id];if(ch){ch.fills.push({t,px:tok?out/tok:spot,side:'sell',label:pd.tag,usd:out,pnl});ch.pts.push([r2(t),spot])}
-  if(p.tokens>p.orig*1e-6)feed('sell',`${CTR.part(tok/p.orig)} $${p.sym} verkauft – ${pd.why} · ${susd(pnl)}`,'exit',{sym:p.sym,mint:p.mint,leader:p.leader,pnl,usd:out,pid:p.id});
-  else{delete S.positions[p.id];const tot=p.proceeds-p.cost,pp=p.cost?tot/p.cost*100:0;
-    const tr={id:p.id,leader:p.leader,lname:p.lname,mint:p.mint,sym:p.sym,cost:p.cost,entry_px:p.entry_px,entry_ts:p.entry_ts,t_leader:p.t_leader,mc_leader:p.mc_leader,mc_entry:p.mc_entry,delay:p.delay,slip:p.slip,legs:p.legs,
-      proceeds:p.proceeds,pnl:tot,pnl_pct:pp,exit_ts:t,exit_px:p.last_px,why:pd.why,note:p.note};
-    S.closed.push(tr);if(S.closed.length>200)S.closed.shift();S.stats[tot>0?'green':'red']++;const ld=S.leaders[p.leader];if(ld)ld.copy_pnl=(ld.copy_pnl||0)+tot;
-    S.eq_hist.push([Math.round(t),equity()]);if(S.eq_hist.length>2000)S.eq_hist.shift();
-    feed('close',`${tot>0?'Gewinn':'Verlust'} $${p.sym} ${pp>=0?'+':''}${pp.toFixed(1)} % (${susd(tot)}) – ${pd.why}`,'exit',{sym:p.sym,mint:p.mint,leader:p.leader,pnl:tot,pnl_pct:pp,pid:p.id})}
-  save()}
-function closeAll(why,tag){let n=0;for(const p of Object.values(S.positions))if(!p.exiting){requestExit(p,1,why,tag);n++}return n}
+  if(e.vs&&e.vt&&!e.migr&&su){const so=e.vs-(e.vs*e.vt)/(e.vt+tok);out=Math.max(0,so*(1-PUMP_FEE)*su-prio)}else out=Math.max(0,tok*spot*(1-DEX_FEE)*(1-DEX_SLIP)-prio);return [tok,out,spot]}
+/* Verkauf wird im gemeinsamen Konto gebucht (bookSell: Kasse, Trade-Liste, Lernen); hier nur Copy-Chart, Feed, Statistik */
+function sellNow(p,frac,why,tag,eng){const [tok,out,spot]=sellMath(p,frac);const cost=p.cost*tok/p.orig_tokens,pnl=out-cost,t=tnow();(p.ct_legs=p.ct_legs||[]).push(tag);
+  const ch=S.charts['c'+p.ct_id];if(ch){ch.fills.push({t,px:tok?out/tok:spot,side:'sell',label:tag,usd:out,pnl});ch.pts.push([r2(t),spot])}
+  const reason=eng||`${ENG_TAG[tag]||tag} (Copy) ${why}`;bookSell(p,tok,out,spot,reason,'Copy-Trading');
+  if(ST.positions[p.key])feed('sell',`${CTR.part(tok/p.orig_tokens)} $${p.sym} verkauft – ${why} · ${susd(pnl)}`,'exit',{sym:p.sym,mint:p.mint,leader:p.leader,pnl,usd:out,pid:p.ct_id});
+  else closeRec(p,why,t);save()}
+function closeRec(p,why,t){const tot=p.proceeds-p.cost,pp=p.cost?tot/p.cost*100:0;
+  const tr={id:p.ct_id,fusion_id:p.id,leader:p.leader,lname:p.lname,mint:p.mint,sym:p.sym,cost:p.cost,entry_px:p.entry_px,entry_ts:p.ct_t0||p.entry_ts,t_leader:p.t_leader,mc_leader:p.mc_leader,mc_entry:p.mc_entry,delay:p.delay,slip:p.ct_slip,legs:p.ct_legs,
+    proceeds:p.proceeds,pnl:tot,pnl_pct:pp,exit_ts:t,exit_px:p.last_px,why,note:p.note};
+  S.closed.push(tr);if(S.closed.length>200)S.closed.shift();S.stats[tot>0?'green':'red']++;const ld=S.leaders[p.leader];if(ld)ld.copy_pnl=(ld.copy_pnl||0)+tot;
+  feed('close',`${tot>0?'Gewinn':'Verlust'} $${p.sym} ${pp>=0?'+':''}${pp.toFixed(1)} % (${susd(tot)}) – ${why}`,'exit',{sym:p.sym,mint:p.mint,leader:p.leader,pnl:tot,pnl_pct:pp,pid:p.ct_id})}
+function fillSell(pd){const p=ST.positions[pd.key];if(!p||!p.ct)return;sellNow(p,pd.frac,pd.why,pd.tag,pd.eng)}
+/* Session-Stop der Engine: Kopien sofort zum aktuellen Kurs schließen (zählt nicht fürs Lernen) */
+function forceClose(p){if(!p.ct||!ST.positions[p.key])return;sellNow(p,1,'Session beendet','SESSION','STOP (Session beendet, Marktpreis)')}
+function closeAll(why,tag){let n=0;for(const p of positions())if(!p.exiting){requestExit(p,1,why,tag);n++}return n}
 function trackVetoes(){const r=R(),su=solPx(),t=tnow();for(const v of S.vetoes){if(!v.open)continue;const e=PX.get(v.mint)||{};const px=e.ps&&su?e.ps*su:null;if(px&&v.px0)v.last=px;
   if(v.res==null){if(px&&v.px0){v.peak=Math.max(v.peak||px,px);const x=px/v.px0,pk=v.peak/v.px0;
       while(v.rest>1e-6){const a=CTR.exitDecision(r,x,pk,v.tp,(t-v.t)/60);if(!a)break;if(a[3]!=null)v.tp.push(a[3]);const part=a[0]>=0.999?v.rest:Math.min(v.rest,a[0]);v.got+=part*x;v.rest-=part;v.exit_why=a[1];
         const ch=S.charts['v'+v.id];chartPt('v'+v.id,t,px);if(ch)ch.fills.push({t,px,side:'sell',label:'hätte '+a[2],pnl:v.size*part*(x-1)})}}
     if(v.rest<=1e-6||t-v.t>VETO_WATCH_S){const x=(v.last||v.px0||1)/(v.px0||1);const g=v.got+v.rest*x;v.res=r2(v.size*(g*(1-PUMP_FEE)**2-1));v.res_t=t;
+      try{vetoResult(v.rule,v.res<0,v.x)}catch(e){}   /* Veto-Ergebnis fließt ins gemeinsame Lernen */
       if(v.res<0){S.stats.avoided+=-v.res;feed('veto_res',`Veto $${v.sym} hat ${usd(-v.res)} Verlust erspart`,'risk',{sym:v.sym,mint:v.mint,leader:v.leader,vid:v.id,pnl:v.res})}
       else{S.stats.missed+=v.res;feed('veto_res',`Veto $${v.sym}: Kopie hätte ${susd(v.res)} gebracht`,'risk',{sym:v.sym,mint:v.mint,leader:v.leader,vid:v.id,pnl:v.res})}}}
   if((v.res!=null&&t-(v.res_t||t)>600)||t-v.t>VETO_WATCH_S+600)v.open=false}}
@@ -1669,14 +1741,15 @@ function step(){const t=tnow(),r=R();pending.sort((a,b)=>a.due-b.due);const keep
     if(!running())continue;if(pd.risk[0]==='veto'){veto(pd,pd.risk[1],pd.risk[2],pd.dev_pct);continue}fillBuy(pd)}
   pending.push(...keep);checkExits();trackVetoes();
   if(r.close_at&&berlinHM(t)===r.close_at&&S.last_close_day!==berlinDay(t)){S.last_close_day=berlinDay(t);const n=closeAll(`Uhrzeit ${r.close_at} – alles schließen`,'ZEIT');feed('sys',`${r.close_at} Uhr: ${n} Kopien werden geschlossen (Regel)`,'exit')}
-  for(const [k,a] of Object.entries(agent))if(a.st==='bereit'||a.st==='aktiv'||t-a.t>6)a.st=(running()||(k==='exit'&&Object.keys(S.positions).length))?'aktiv':'bereit';
+  for(const p of positions()){const e=pxEntry(p.mint,p.sym);if(!e.ps&&p.last_px&&solPx())e.ps=p.last_px/solPx()}   /* Kurs der offenen Kopien (auch nach Neuladen) mitlesen */
+  for(const [k,a] of Object.entries(agent))if(a.st==='bereit'||a.st==='aktiv'||t-a.t>6)a.st=(running()||(k==='exit'&&positions().length))?'aktiv':'bereit';
   if(dirty&&t-savedT>3)save()}
 /* ---- eigene Verbindung zum öffentlichen Solana-RPC ---- */
 let WS=null,wsT0=0,reqId=1,SUBS=new Map(),REQ=new Map(),wsBack=1,rpcSt='aus';
 function wantKeys(){const w=new Map();if(running())for(const a of S.follow.slice(0,MAX_WALLETS))w.set('w:'+a,a);
-  const ms=new Set([...Object.values(S.positions).map(p=>p.mint),...S.vetoes.filter(v=>v.open).map(v=>v.mint),...pending.map(x=>x.mint)]);
+  const ms=new Set([...positions().map(p=>p.mint),...S.vetoes.filter(v=>v.open).map(v=>v.mint),...pending.map(x=>x.mint)]);
   for(const m of ms){const e=PX.get(m);if(e&&e.migr)continue;try{const c=curvePDA(m);if(c)w.set('c:'+m,c)}catch(x){}}return w}
-function needConn(){return running()||Object.keys(S.positions).length>0||S.vetoes.some(v=>v.open)}
+function needConn(){return running()||positions().length>0||S.vetoes.some(v=>v.open)}
 function connect(){if(WS||!needConn())return;wsT0=tnow();let ws;try{ws=new WebSocket('wss://api.mainnet-beta.solana.com')}catch(e){setTimeout(connect,3000);return}WS=ws;rpcSt='verbinde';
   ws.onopen=()=>{SUBS.clear();REQ.clear();rpcSt='OK';wsBack=1;sync()};
   ws.onmessage=ev=>{cnt.rpc++;const s=ev.data;if(s.length<400&&s.indexOf('"method"')<0){let m;try{m=JSON.parse(s)}catch(e){return}if(m.id!=null&&REQ.has(m.id)){const k=REQ.get(m.id);REQ.delete(m.id);if(typeof m.result==='number')SUBS.set(k,m.result)}return}
@@ -1690,18 +1763,21 @@ function sync(){const ws=WS;if(!ws||ws.readyState!==1)return;const want=wantKeys
   const asked=new Set(REQ.values());for(const [k,addr] of want){if(SUBS.has(k)||asked.has(k))continue;const id=++reqId;REQ.set(id,k);ws.send(JSON.stringify({jsonrpc:'2.0',id,method:'logsSubscribe',params:[{mentions:[addr]},{commitment:'confirmed'}]}))}}
 async function net(){const t=tnow();if(!(typeof solUsd!=='undefined'&&solUsd>1)&&t-solT>60){solT=t;const r=await get('https://lite-api.jup.ag/price/v3?ids=So11111111111111111111111111111111111111112');
     const v=r&&r.So11111111111111111111111111111111111111112?+r.So11111111111111111111111111111111111111112.usdPrice:0;if(v>1)S.sol_usd=v}
-  const need=new Set([...Object.values(S.positions).map(p=>p.mint),...S.vetoes.filter(v=>v.open).map(v=>v.mint)]);let n=0;
+  const need=new Set([...positions().map(p=>p.mint),...S.vetoes.filter(v=>v.open).map(v=>v.mint)]);let n=0;
   for(const m of need){const e=pxEntry(m);if(t-e.t<30||(dsNext.get(m)||0)>t||n>=2)continue;dsNext.set(m,t+15);n++;const j=await get('https://api.dexscreener.com/latest/dex/tokens/'+m);
     try{const ps=(j.pairs||[]).filter(p=>p.chainId==='solana'&&p.priceNative).sort((a,b)=>(+(b.liquidity||{}).usd||0)-(+(a.liquidity||{}).usd||0));
       if(ps.length){e.ps=+ps[0].priceNative;e.vs=e.vt=0;e.t=t;e.src='dex';if(ps[0].dexId&&ps[0].dexId!=='pumpfun')e.migr=true;e.sym=e.sym||(ps[0].baseToken||{}).symbol;touch(m,e)}}catch(x){}}}
 let timer=null,netBusy=false;
 function loop(){try{step()}catch(e){console.error(e)}if(needConn()){connect();if(Math.random()<0.2)sync()}else if(WS){try{WS.close()}catch(e){}}
   if(!netBusy){netBusy=true;net().catch(()=>{}).finally(()=>{netBusy=false})}}
-function boot(){for(const p of Object.values(S.positions)){pxEntry(p.mint,p.sym);p.exiting=false}for(const v of S.vetoes)if(v.open)pxEntry(v.mint,v.sym);if(!timer)timer=setInterval(loop,250)}
+function boot(){for(const p of positions()){pxEntry(p.mint,p.sym);p.exiting=false}for(const v of S.vetoes)if(v.open)pxEntry(v.mint,v.sym);if(!timer)timer=setInterval(loop,250)}
 /* ---- Bedienung ---- */
-function start(usdIn){if(running())return false;if(S.status==='idle')S=newState(usdIn||S.start_usd||70,'running',S);S.status='running';feed('sys',`Copy-Trading gestartet · Spielgeld ${usd(S.cash)} · folgt ${S.follow.length} Trader(n)`,'watcher');save();return true}
-function stop(){if(!running())return false;S.status='stopped';for(let i=pending.length-1;i>=0;i--)if(pending[i].kind==='buy')pending.splice(i,1);feed('sys','Copy-Trading gestoppt – keine neuen Kopien, offene Positionen verwaltet der Exit-Agent weiter','watcher');save();return true}
-function wipe(){if(running())return false;pending.length=0;S=newState(S.start_usd||70,'idle',S);save();return true}
+/* Copy-Agent an: startet den Night-Run-Bot mit, falls er nicht läuft (ein Konto) */
+function start(){if(running())return false;S.status='running';let auto=false;if(ST.status!=='running'&&ST.status!=='stopping'&&typeof startSession==='function'){try{startSession(CFG.common.start_usd);auto=true}catch(e){}}
+  feed('sys',`Copy-Trading an · Night-Run-Konto ${usd(equity())}${auto?' (Bot mitgestartet)':''} · folgt ${S.follow.length} Trader(n)`,'watcher');save();return true}
+function stop(){if(!running())return false;S.status='stopped';for(let i=pending.length-1;i>=0;i--)if(pending[i].kind==='buy')pending.splice(i,1);feed('sys','Copy-Agent aus – keine neuen Kopien; offene Kopien verwaltet der Exit-Agent weiter, der Night-Run-Bot handelt weiter','watcher');save();return true}
+/* Copy-Verlauf leeren: Konto, Lernstand, Regeln und Trader bleiben */
+function wipe(){if(running())return false;for(let i=pending.length-1;i>=0;i--)if(pending[i].kind==='buy')pending.splice(i,1);S=newState('idle',S);S.alt_konto=null;save();return true}
 const okAddr=a=>typeof a==='string'&&/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)&&(()=>{try{return b58dec(a).length===32}catch(e){return false}})();
 function follow(a,on,name){if(on){if(!okAddr(a))return false;if(!S.follow.includes(a)){if(S.follow.length>=MAX_WALLETS)return false;S.follow.push(a)}if(name)S.names[a]=String(name).slice(0,24)}else S.follow=S.follow.filter(x=>x!==a);save();sync();return true}
 function setRules(text){const p=CTR.parse(text),by={};for(const [a,n] of Object.entries(S.names||{}))by[String(n).toLowerCase().replace(/^@/,'')]=a;const chips=p.chips.slice(),found=[],missing=[],unknown=[];
@@ -1710,13 +1786,17 @@ function setRules(text){const p=CTR.parse(text),by={};for(const [a,n] of Object.
   for(const a of p.addrs)if(okAddr(a))found.push([a,a]);for(const [,a] of found){if(!S.follow.includes(a)&&S.follow.length<MAX_WALLETS)S.follow.push(a);chips.unshift({k:'follow',txt:'Folgen: '+nameOf(a)})}
   for(const [nm] of missing)chips.unshift({k:'follow_missing',txt:`„${nm}“ unbekannt – unten Adresse + Name einfügen`,bad:true});
   if(Object.keys(p.rules).length)S.rules=p.rules;S.rules_text=String(text).slice(0,2000);feed('sys','Neue Regeln: '+(chips.map(c=>c.txt).join(' · ')||'nichts erkannt'),'risk');save();sync();return {chips,unknown}}
-function view(){const eq=equity(),st=S.stats,n=st.green+st.red,t=tnow();
-  return {status:S.status,start_usd:S.start_usd,cash:S.cash,equity:eq,pnl:eq-S.start_usd,pnl_pct:S.start_usd?(eq/S.start_usd-1)*100:0,sol:solPx(),rpc:rpcSt,subs:SUBS.size,
-    stats:Object.assign({},st,{winrate:n?Math.round(st.green/n*100):null}),positions:Object.values(S.positions).map(p=>Object.assign({},p,{x:p.entry_px?p.last_px/p.entry_px:1,upnl:p.tokens*p.last_px+p.proceeds-p.cost})),
-    closed:S.closed.slice(-60).reverse(),vetoes:S.vetoes.slice(-40).reverse(),feed:S.feed.slice(-120).reverse(),eq_hist:S.eq_hist.slice(-400),rule_chips:CTR.describe(S.rules),follow:S.follow.slice(),
+function view(){const idle=ST.status==='idle',eq=idle?ST.start_usd:eqNow(),st=S.stats,n=st.green+st.red,t=tnow();
+  const pos=positions().map(p=>({id:p.ct_id,fusion_id:p.id,key:p.key,leader:p.leader,lname:p.lname,mint:p.mint,sym:p.sym,cost:p.cost,entry_px:p.entry_px,last_px:p.last_px,entry_ts:p.ct_t0||p.entry_ts,delay:p.delay,
+    mc_entry:p.mc_entry,mc_leader:p.mc_leader,legs:(p.ct_legs||[]).slice(),exiting:p.exiting,note:p.note,slip:p.ct_slip,x:p.entry_px?p.last_px/p.entry_px:1,upnl:p.tokens*p.last_px+p.proceeds-p.cost}));
+  const real=(ST.recent_trades||[]).filter(x=>x.agent==='copy').reduce((a,x)=>a+x.pnl,0),unreal=pos.reduce((a,x)=>a+x.upnl,0);
+  return {status:S.status,konto:'nightrun',bot:ST.status,bot_live:botLive(),start_usd:ST.start_usd,cash:ST.cash,equity:eq,pnl:eq-ST.start_usd,pnl_pct:ST.start_usd?(eq/ST.start_usd-1)*100:0,sol:solPx(),rpc:rpcSt,subs:SUBS.size,
+    copy_pnl:real+unreal,cap_open:capOpen(),bot_open:Object.keys(ST.positions).length-pos.length,alt_konto:S.alt_konto||null,
+    stats:Object.assign({},st,{winrate:n?Math.round(st.green/n*100):null}),positions:pos,
+    closed:S.closed.slice(-60).reverse(),vetoes:S.vetoes.slice(-40).map(v=>Object.assign({},v,{x:undefined})).reverse(),feed:S.feed.slice(-120).reverse(),eq_hist:(ST.eq||[]).slice(-400).map(q=>[q[0]/1000,q[1]]),rule_chips:CTR.describe(S.rules),follow:S.follow.slice(),
     leaders:S.follow.map(leaderStats).sort((a,b)=>(b.pnl_sol+b.unreal_sol)-(a.pnl_sol+a.unreal_sol)),now:t,
     agents:AG.map(([k,nm,d,ic])=>({id:k,name:nm,desc:d,ic,st:running()||k==='exit'?agent[k].st:'aus',last:agent[k].last,ago:agent[k].t?t-agent[k].t:null,
-      info:{watcher:`${S.follow.length} Trader · ${cnt.leader_buys} Käufe gesehen`,copier:`${pending.filter(x=>x.kind==='buy').length} wartend · ${st.copies} Kopien`,risk:`${st.vetoed} Vetos · ${usd(st.avoided)} erspart`,exit:`${Object.keys(S.positions).length} offen · ${n} geschlossen`}[k]}))}}
+      info:{watcher:`${S.follow.length} Trader · ${cnt.leader_buys} Käufe gesehen`,copier:`${pending.filter(x=>x.kind==='buy').length} wartend · ${st.copies} Kopien`,risk:`${st.vetoed} Vetos · ${usd(st.avoided)} erspart`,exit:`${pos.length} offen · ${n} geschlossen`}[k]}))}}
 function notify(e){const ui=U();if(typeof ui.toastEl!=='function')return;const play=k=>{try{ui.play(k)}catch(x){}};const w=(e.pnl||0)>0;const av=ic=>`<div class="av" style="--ac:#7c5cff;background:#1d1838">${ic}</div>`;
   if(e.k==='buy'){ui.toastEl(`${av('⚡')}<div class="tx"><b>Copy: Kopie $${E(e.sym)}</b><small>${E(e.txt)}</small></div>`,'#19f0a0');play('buy')}
   else if(e.k==='close'||e.k==='sell'){ui.toastEl(`${av(w?'💰':'🩸')}<div class="tx"><b>Copy: ${e.k==='close'?(w?'Gewinn':'Verlust'):'Teilverkauf'} $${E(e.sym)}</b><small>${E(e.txt)}</small></div><div class="am ${w?'pos':'neg'}">${susd(e.pnl)}</div>`,w?'#19f0a0':'#ff4d6d');
@@ -1724,7 +1804,7 @@ function notify(e){const ui=U();if(typeof ui.toastEl!=='function')return;const p
   else if(e.k==='veto'){ui.toastEl(`${av('🛡️')}<div class="tx"><b>Copy: Veto $${E(e.sym)}</b><small>${E(e.txt)}</small></div>`,'#ffc145');play('loss')}
   else if(e.k==='veto_res'&&(e.pnl||0)<0)ui.toastEl(`${av('🧮')}<div class="tx"><b>Copy: Veto hat sich gelohnt</b><small>${E(e.txt)}</small></div>`,'#ffc145')
   else if(e.k==='sys')ui.toastEl(`${av('🤖')}<div class="tx"><b>Copy-Trading</b><small>${E(e.txt)}</small></div>`,'#7c5cff')}
-return {boot,step,onTrade,start,stop,wipe,follow,setRules,view,closeAll,chart:k=>S.charts[k]||null,checkRisk,T,get S(){return S},PX,pending,okAddr}})();
+return {boot,step,onTrade,start,stop,wipe,follow,setRules,view,closeAll,chart:k=>S.charts[k]||null,checkRisk,T,get S(){return S},PX,pending,okAddr,safetyExit,forceClose,positions,migrate}})();
 /* ---------- Copy-Trading: Oberfläche ---------- */
 (()=>{"use strict";
 const Q=id=>document.getElementById(id),U=()=>window.NR_UI||{};
@@ -1752,11 +1832,12 @@ function curve(c,pts,up){const dpr=devicePixelRatio||1,W=c.clientWidth,H=c.clien
   const col=up?'#19f0a0':'#ff4d6d';g.beginPath();pts.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.strokeStyle=col;g.lineWidth=2;g.stroke();
   g.lineTo(X(t1),H);g.lineTo(X(t0),H);g.closePath();const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,up?'rgba(25,240,160,.25)':'rgba(255,77,109,.22)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fill()}
 function render(force){const sec=Q('v-copy');if(!sec)return;const v=CT.view();V=v;if(!force&&!sec.classList.contains('on')){return}
-  const run=v.status==='running',up=v.pnl>=0;Q('ctEq').textContent=usd(v.equity);Q('ctPnl').innerHTML=`<span class="${up?'pos':'neg'}">${susd(v.pnl)} (${pc(v.pnl_pct)})</span> <span class="mut">· Start ${usd(v.start_usd)} · Cash ${usd(v.cash)} · ${run?'läuft':v.status==='stopped'?'gestoppt':'bereit'}</span>`;
+  const run=v.status==='running',up=v.pnl>=0;Q('ctEq').textContent=usd(v.equity);Q('ctPnl').innerHTML=`<span class="${up?'pos':'neg'}">${susd(v.pnl)} (${pc(v.pnl_pct)})</span> <span class="mut">· Start ${usd(v.start_usd)} · Cash ${usd(v.cash)} · Copy-Agent ${run?(v.bot_live?'kopiert live':'wartet auf Bot'):v.status==='stopped'?'aus':'bereit'} · Bot ${v.bot==='running'?'läuft':v.bot==='stopped'?'gestoppt':'bereit'}</span>`;
+  const al=v.alt_konto;Q('ctAlt').style.display=al?'':'none';if(al)Q('ctAlt').textContent=`Umgestellt: altes Copy-Konto ${usd(al.start_usd)} → ${usd(al.ende_usd)} (${al.kopien} offene Kopien zum letzten Kurs geschlossen). Ab jetzt zählt nur das Night-Run-Konto.`;
   curve(Q('ctCurve'),v.eq_hist.concat([[v.now,v.equity]]),up);const s=v.stats;
-  Q('ctK').innerHTML=[['Kopien',s.copies],['Grün',`<span class="pos">${s.green}</span>`],['Rot',`<span class="neg">${s.red}</span>`],['Vetos',s.vetoed],['Erspart',`<span class="pos">${usd(s.avoided)}</span>`],['Trefferquote',s.winrate==null?'–':s.winrate+' %']]
+  Q('ctK').innerHTML=[['Kopien',s.copies],['Grün',`<span class="pos">${s.green}</span>`],['Rot',`<span class="neg">${s.red}</span>`],['Vetos',s.vetoed],['Erspart',`<span class="pos">${usd(s.avoided)}</span>`],['Trefferquote',s.winrate==null?'–':s.winrate+' %'],['Copy-PnL',`<span class="${v.copy_pnl>=0?'pos':'neg'}">${susd(v.copy_pnl)}</span>`],['Kopien offen',`${v.positions.length}/${v.cap_open}`]]
     .map(([k,x])=>`<div class="kpi"><span>${k}</span><b class="num">${x}</b></div>`).join('');
-  Q('ctStart').disabled=run;Q('ctStart').textContent=v.status==='stopped'?'Weiter':'Start';Q('ctStop').disabled=!run;Q('ctWipe').disabled=run;Q('ctUsd').disabled=v.status!=='idle';
+  Q('ctStart').disabled=run;Q('ctStop').disabled=!run;Q('ctWipe').disabled=run;
   Q('ctConn').textContent=`Solana-RPC: ${v.rpc} · ${v.subs} Abos · SOL ${v.sol?usd(v.sol):'–'}`;
   Q('ctRules').innerHTML='<span class="lbl" style="margin-right:6px">Aktiv</span>'+v.rule_chips.map(c=>`<span class="ctrule"${c.std?' style="opacity:.6"':''}>${E(c.txt)}</span>`).join(' ');
   Q('ctAgents').innerHTML=v.agents.map(a=>`<div class="ctagent ${a.ago!=null&&a.ago<4?'hot':''}"><span class="st ${a.st!=='aus'&&a.st!=='bereit'?'on':''}">${E(a.st)}</span><b>${a.ic} ${E(a.name)}</b><small>${E(a.info)}</small><small>${E(a.last||a.desc)}</small></div>`).join('');
@@ -1799,15 +1880,15 @@ function drawChart(){const ch=CT.chart(openKey);if(!ch||!Q('ctOvl').classList.co
     g.fillText(lab,x,f.side==='leader'?y+20:y-11)}}
 function wire(){Q('ctSug').innerHTML=SUG.map(s=>`<button>${E(s)}</button>`).join('');Q('ctSug').onclick=e=>{const b=e.target.closest('button');if(b){Q('ctIn').value=b.textContent;Q('ctIn').focus()}};
   Q('ctSend').onclick=send;Q('ctIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
-  Q('ctStart').onclick=()=>{const u=parseFloat(String(Q('ctUsd').value||'').replace(',','.'));if(!(u>=1&&u<=1e6)){alert('Bitte ein Startkapital ab 1 $ eingeben.');return}if(CT.start(u)){try{U().play('start')}catch(e){}}render(true)};
+  Q('ctStart').onclick=()=>{if(CT.start()){try{U().play('start')}catch(e){}}render(true)};
   Q('ctStop').onclick=()=>{CT.stop();try{U().play('stop')}catch(e){}render(true)};
   Q('ctCloseAll').onclick=()=>{if(!confirm('Alle offenen Kopien zum aktuellen Kurs schließen (Spielgeld)?'))return;CT.closeAll('Von Hand: alle schließen','HAND');render(true)};
-  Q('ctWipe').onclick=()=>{if(!confirm('Copy-Konto zurücksetzen? Kopien, Vetos und Kontostand werden gelöscht. Regeln und verfolgte Trader bleiben.'))return;CT.wipe();Q('ctUsd').value=Math.round(CT.S.start_usd);render(true)};
+  Q('ctWipe').onclick=()=>{if(!confirm('Copy-Verlauf leeren? Liste der Kopien, Vetos und Copy-Statistik werden gelöscht. Night-Run-Konto, Lernstand, Regeln und verfolgte Trader bleiben.'))return;CT.wipe();render(true)};
   Q('ctAdd').onclick=()=>{const a=Q('ctAddr').value.trim();if(!a)return;if(!CT.follow(a,true,Q('ctAddrN').value.trim())){alert('Das ist keine gültige Solana-Adresse (oder schon 25 Trader).');return}Q('ctAddr').value='';Q('ctAddrN').value='';render(true)};
   Q('v-copy').addEventListener('click',e=>{const u=e.target.closest('[data-un]');if(u){if(confirm('Diesem Trader nicht mehr folgen?')){CT.follow(u.dataset.un,false);render(true)}return}
     const p=e.target.closest('[data-pick]');if(p){CT.follow(p.dataset.pick,true);render(true);return}const c=e.target.closest('[data-c]');if(c)openChart(c.dataset.c)});
   Q('ctOvl').addEventListener('click',e=>{if(e.target===Q('ctOvl'))Q('ctOvl').classList.remove('on')});
-  Q('ctUsd').value=Math.round(CT.S.start_usd||70);renderMsgs();addEventListener('resize',()=>render())}
+  renderMsgs();addEventListener('resize',()=>render())}
 window.CT_UI={render,openChart,drawChart};
 function init(){wire();CT.boot();render(true);setInterval(()=>render(),1000)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
